@@ -31,69 +31,181 @@ function PBtn({ onClick, children, title, active, style: s }) {
   );
 }
 
-function CaptionPicker({ selectedLang, onSelect, videoEl }) {
+
+
+function CaptionPicker({ selectedLang, onSelect, videoEl, captionStatus }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+
   useEffect(() => {
     if (!open) return;
     const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
+
   const handleSelect = lang => {
     onSelect(lang.code);
     setOpen(false);
+    // Safety fallback for any pre-existing static tracks
     if (videoEl) {
       const tracks = videoEl.textTracks;
       for (let i = 0; i < tracks.length; i++) {
-        tracks[i].mode = lang.code !== "off" && (tracks[i].language === lang.code || (lang.code === "en" && tracks[i].kind === "subtitles")) ? "showing" : "hidden";
+        if (tracks[i].label !== "AI Caption") {
+          tracks[i].mode = "hidden";
+        }
       }
     }
   };
+
   const isOn = selectedLang !== "off";
   const current = CAPTION_LANGS.find(l => l.code === selectedLang) || CAPTION_LANGS[0];
+
+  const isLoading = isOn && captionStatus === "loading";
+  const isActive  = isOn && captionStatus === "active";
+  const isError   = isOn && captionStatus === "error";
+
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <button onClick={() => setOpen(v => !v)} title="Captions" style={{
-        background: isOn ? `${C.accent}22` : "rgba(255,255,255,.12)",
-        border: isOn ? `1px solid var(--accent)55` : "1px solid transparent",
-        borderRadius: 6, color: isOn ? C.accent : "rgba(255,255,255,.8)",
-        fontSize: 11, fontWeight: 800, cursor: "pointer", padding: "4px 8px",
-        fontFamily: "inherit", transition: "all .15s",
-        display: "flex", alignItems: "center", gap: 4,
-        textDecoration: isOn ? "none" : "line-through rgba(255,255,255,.5)",
-      }}>
-        CC{isOn && <span style={{ fontSize: 9 }}>{current.flag}</span>}
+      <button
+        onClick={() => setOpen(v => !v)}
+        title="Captions / AI Subtitles"
+        style={{
+          background: isOn ? `${C.accent}22` : "rgba(255,255,255,.12)",
+          border: isOn ? `1px solid ${C.accent}55` : "1px solid transparent",
+          borderRadius: 6,
+          color: isOn ? C.accent : "rgba(255,255,255,.8)",
+          fontSize: 11,
+          fontWeight: 800,
+          cursor: "pointer",
+          padding: "4px 8px",
+          fontFamily: "inherit",
+          transition: "all .15s",
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          textDecoration: isOn ? "none" : "line-through rgba(255,255,255,.5)",
+          position: "relative",
+        }}
+      >
+        CC
+        {isOn && <span style={{ fontSize: 9 }}>{current.flag}</span>}
+
+        {isLoading && (
+          <span style={{
+            width: 6, height: 6, borderRadius: "50%",
+            border: `1.5px solid ${C.accent}`,
+            borderTopColor: "transparent",
+            animation: "spin .7s linear infinite",
+            display: "inline-block",
+            flexShrink: 0,
+          }} />
+        )}
+        {isActive && (
+          <span style={{
+            width: 6, height: 6, borderRadius: "50%",
+            background: "#00e676",
+            display: "inline-block",
+            flexShrink: 0,
+            boxShadow: "0 0 4px #00e676",
+          }} />
+        )}
+        {isError && (
+          <span style={{
+            width: 6, height: 6, borderRadius: "50%",
+            background: "#ff5252",
+            display: "inline-block",
+            flexShrink: 0,
+          }} />
+        )}
       </button>
+
       {open && (
         <div style={{
-          position: "absolute", bottom: "calc(100% + 8px)", right: 0,
-          background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
-          overflow: "hidden", zIndex: 999, minWidth: 170,
-          boxShadow: "0 8px 32px rgba(0,0,0,.8)", animation: "fadeUp .18s ease",
+          position: "absolute",
+          bottom: "calc(100% + 8px)",
+          right: 0,
+          background: C.bg2,
+          border: `1px solid ${C.border}`,
+          borderRadius: 12,
+          overflow: "hidden",
+          zIndex: 999,
+          minWidth: 180,
+          boxShadow: "0 8px 32px rgba(0,0,0,.8)",
+          animation: "fadeUp .18s ease",
         }}>
-          <div style={{ padding: "10px 14px 8px", fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: .8, borderBottom: `1px solid ${C.border}` }}>🌐 Subtitles / CC</div>
+          <div style={{
+            padding: "10px 14px 8px",
+            fontSize: 11,
+            fontWeight: 700,
+            color: C.muted,
+            textTransform: "uppercase",
+            letterSpacing: .8,
+            borderBottom: `1px solid ${C.border}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}>
+            <span>🌐 Subtitles / CC</span>
+            {captionStatus === "loading" && isOn && (
+              <span style={{ fontSize: 9, color: C.accent, fontWeight: 600, background: `${C.accent}18`, padding: "2px 6px", borderRadius: 4 }}>
+                AI loading…
+              </span>
+            )}
+            {captionStatus === "active" && isOn && (
+              <span style={{ fontSize: 9, color: "#00e676", fontWeight: 600, background: "#00e67618", padding: "2px 6px", borderRadius: 4 }}>
+                ● AI live
+              </span>
+            )}
+            {captionStatus === "error" && isOn && (
+              <span style={{ fontSize: 9, color: "#ff5252", fontWeight: 600, background: "#ff525218", padding: "2px 6px", borderRadius: 4 }}>
+                ⚠ Error
+              </span>
+            )}
+          </div>
+
           {CAPTION_LANGS.map(lang => (
-            <div key={lang.code} onClick={() => handleSelect(lang)} style={{
-              padding: "9px 14px", cursor: "pointer", fontSize: 13,
-              display: "flex", alignItems: "center", gap: 10,
-              color: selectedLang === lang.code ? C.accent : C.text,
-              background: selectedLang === lang.code ? `${C.accent}15` : "transparent",
-              fontWeight: selectedLang === lang.code ? 700 : 400, transition: "background .12s",
-            }}
+            <div
+              key={lang.code}
+              onClick={() => handleSelect(lang)}
+              style={{
+                padding: "9px 14px",
+                cursor: "pointer",
+                fontSize: 13,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                color: selectedLang === lang.code ? C.accent : C.text,
+                background: selectedLang === lang.code ? `${C.accent}15` : "transparent",
+                fontWeight: selectedLang === lang.code ? 700 : 400,
+                transition: "background .12s",
+              }}
               onMouseEnter={e => { if (selectedLang !== lang.code) e.currentTarget.style.background = C.bg3; }}
               onMouseLeave={e => { if (selectedLang !== lang.code) e.currentTarget.style.background = "transparent"; }}
             >
               <span style={{ fontSize: 16, flexShrink: 0 }}>{lang.flag}</span>
               <span style={{ flex: 1 }}>{lang.label}</span>
-              {selectedLang === lang.code && <span style={{ color: C.accent }}>✓</span>}
+              {selectedLang === lang.code && (
+                <span style={{ color: C.accent }}>✓</span>
+              )}
             </div>
           ))}
+
+          <div style={{
+            padding: "8px 14px",
+            fontSize: 10,
+            color: C.muted,
+            borderTop: `1px solid ${C.border}`,
+            textAlign: "center",
+          }}>
+            ⚡ Powered by Whisper AI
+          </div>
         </div>
       )}
     </div>
   );
 }
+
 
 function Seekbar({ prog, dur, buffered, onSeek }) {
   const ref = useRef(null);
@@ -127,7 +239,7 @@ export default function ControlsBar({
   playing, muted, vol, prog, dur, curTime, speed, isFS, isMobile,
   showCtrl, vRef, captionLang, onCaptionChange,
   togglePlay, seekBy, toggleFS, setSpeedTo, onMute, onVolume,
-  buffered, isBuffering,
+  buffered, isBuffering,captionStatus
 }) {
   const [speedMenu, setSpeedMenu] = useState(false);
   const speedRef = useRef(null);
@@ -171,7 +283,7 @@ export default function ControlsBar({
           {fmtTime(curTime)} / {fmtTime(dur)}
         </span>
         <div style={{ marginLeft: "auto", display: "flex", gap: 5, alignItems: "center" }}>
-          <CaptionPicker selectedLang={captionLang || "off"} onSelect={onCaptionChange} videoEl={vRef.current}/>
+          <CaptionPicker selectedLang={captionLang || "off"} onSelect={onCaptionChange} videoEl={vRef.current} captionStatus={captionStatus}/>
           <div ref={speedRef} style={{ position: "relative" }}>
             <button onClick={() => setSpeedMenu(s => !s)} style={{
               fontSize: 11, background: speed !== 1 ? `${C.accent}22` : "rgba(255,255,255,.16)",
