@@ -649,7 +649,7 @@ const load = useCallback(async () => {
   const handleDelete = async (commentId) => {
     if (!session) return;
     setComments(prev => removeComment(prev, commentId));
-    await commentAPI.delete(commentId, session.user.id);
+    await commentAPI.deletecmnd(commentId, session.user.id);
   };
 
   const handleNewComment = useCallback((newComment, parentId = null) => {
