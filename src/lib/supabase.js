@@ -160,7 +160,7 @@ export const followAPI = {
     cache.bust(`follow:${followerId}`);
     cache.bust(`profile:${followerId}`);
     cache.bust(`profile:${followingId}`);
-    await notifAPI.create({ userId: followingId, actorId: followerId, type: "follow" }).catch(() => {});
+    await notifAPI.create({ userId: followingId, actorId: followerId, type: "follow" }).catch(() => { });
   },
 
   async unfollow(followerId, followingId) {
@@ -243,7 +243,7 @@ export const followAPI = {
       .select().single();
     if (error) throw error;
 
-    await notifAPI.create({ userId: recipientId, actorId: senderId, type: "follow_request" }).catch(() => {});
+    await notifAPI.create({ userId: recipientId, actorId: senderId, type: "follow_request" }).catch(() => { });
     return data;
   },
 
@@ -270,7 +270,7 @@ export const followAPI = {
       if (sp) await supabase.from("profiles").update({ following_count: (sp.following_count || 0) + 1 }).eq("id", senderId);
     }
 
-    await notifAPI.create({ userId: senderId, actorId: recipientId, type: "follow_accepted" }).catch(() => {});
+    await notifAPI.create({ userId: senderId, actorId: recipientId, type: "follow_accepted" }).catch(() => { });
     await supabase.from("follow_requests").update({ status: "accepted" }).eq("id", requestId);
 
     cache.bust(`follow:${senderId}`);
@@ -348,8 +348,8 @@ export const videoAPI = {
   },
 
   //async getCategories() {
-    //const { data } = await supabase.rpc('get_unique_categories');
-    //return data?.map(r => r.category) || [];
+  //const { data } = await supabase.rpc('get_unique_categories');
+  //return data?.map(r => r.category) || [];
   //},
 
   async getUniversalFeed(userId, page, limit, category, filter) {
@@ -360,6 +360,7 @@ export const videoAPI = {
       p_category: category,
       p_filter: filter
     });
+    console.log('fff', data, 'eerr', error)
 
     if (error) throw error;
     if (!data?.length) return [];
@@ -505,7 +506,7 @@ export const videoAPI = {
     if (error) throw error;
     cache.bust("feed:");
     cache.del("video:categories"); // bust category cache when new video uploaded
-    await notifAPI.notifyFollowers(userId, "video", data.id).catch(() => {});
+    await notifAPI.notifyFollowers(userId, "video", data.id).catch(() => { });
     return data;
   },
 
@@ -534,7 +535,7 @@ export const likeAPI = {
     } else {
       await supabase.from("video_likes").insert({ user_id: userId, video_id: videoId });
       if (videoOwnerId && videoOwnerId !== userId) {
-        await notifAPI.create({ userId: videoOwnerId, actorId: userId, type: "like", videoId }).catch(() => {});
+        await notifAPI.create({ userId: videoOwnerId, actorId: userId, type: "like", videoId }).catch(() => { });
       }
     }
     cache.del(`like:${userId}:${videoId}`);
@@ -593,12 +594,12 @@ export const commentAPI = {
       .single();
     if (error) { console.error('Comment insert error:', error); throw error; }
     if (videoOwnerId && videoOwnerId !== userId && !parentId) {
-      await notifAPI.create({ userId: videoOwnerId, actorId: userId, type: "comment", videoId, commentId: data.id }).catch(() => {});
+      await notifAPI.create({ userId: videoOwnerId, actorId: userId, type: "comment", videoId, commentId: data.id }).catch(() => { });
     }
     return data;
   },
 
-  async delete(commentId, userId) {
+  async deletecmnd(commentId, userId) {
     const { error } = await supabase.from("comments").delete().eq("id", commentId).eq("user_id", userId);
     if (error) throw error;
   },
