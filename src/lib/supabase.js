@@ -80,14 +80,20 @@ export const profileAPI = {
     return cache.set(`profile:${id}`, data);
   },
 
-  async getByUsername(username) {
-    const cached = cache.get(`profile:u:${username}`);
-    if (cached) return cached;
-    const { data, error } = await supabase.from("profiles").select("*").eq("username", username.toLowerCase().trim()).maybeSingle();
-    if (error) throw error;
-    if (!data) return null;
-    return cache.set(`profile:u:${username}`, data);
-  },
+// src/lib/supabase.js
+async getByUsername(username) {
+  console.log("comng",username)
+  // Use .ilike for case-insensitive matching
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .ilike("username", username)
+    .maybeSingle(); 
+    
+  if (error) throw error;
+  console.log('data',data)
+  return data; // Should return the profile object or null
+},
 
   async checkUsername(username) {
     const { data } = await supabase.from("profiles").select("id").eq("username", username.toLowerCase()).maybeSingle();

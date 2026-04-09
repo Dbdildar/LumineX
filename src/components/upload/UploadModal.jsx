@@ -8,21 +8,28 @@ import { supabase, videoAPI } from "../../lib/supabase";
  * Since icons aren't in the DB, we map them by name.
  */
 const GET_ICON = (name) => {
-  const map = {
-    "Football": "⚽",
-    "Soccer": "⚽",
-    "Basketball": "🏀",
-    "Cricket": "🏏",
-    "Tennis": "🎾",
-    "Boxing": "🥊",
-    "MMA": "🥊",
-    "E-Sports": "🎮",
-    "Gaming": "🎮",
-    "Golf": "⛳",
-    "Racing": "🏎️",
-  };
-  // Return mapped icon or default folder
-  return map[Object.keys(map).find(k => name?.includes(k))] || "📁";
+const categories = [
+  // Popular & Mainstream
+  "Amateur", "Anal", "BDSM", "Big Butt", "Big Tits", "Blowjob", "Creampie", 
+  "Cumshot", "Hardcore", "MILF", "POV", "Public", "Solo", "Teen (18+)", "Threesome",
+  
+  // Ethnic & International
+  "Asian", "Arab", "Brazilian", "Ebony", "Indian", "Interracial", "Japanese", 
+  "Latina", "Russian",
+
+  // Orientation & Niche
+  "Bisexual", "Gay", "Lesbian", "Queer", "Transgender",
+  
+  // Style & Theme
+  "Babysitter", "Behind The Scenes", "Cosplay", "Double Penetration", "Fetish", 
+  "Handjob", "Massage", "Masturbation", "Office", "Orgy", "Outdoor", "Party", 
+  "Reality", "Romance", "Squirt", "Uniform", "Vintage", "Virtual Reality", "Webcam"
+];
+
+  // Find if the input 'name' contains any of our categories
+const match = categories.find(cat => name?.toLowerCase().includes(cat.toLowerCase()));
+  // Return the matched category name, or an empty string if no match
+  return match || "";
 };
 
 export default function UploadModal() {

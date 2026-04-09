@@ -497,12 +497,12 @@ export default function ProfilePage({ userId, passedData, onClose }) {
   }, []);
 
   // Optimized isOwn logic
+  // Optimized isOwn logic - Place this above loadMetadata
   const isOwn = !!(
     session?.user?.id &&
     (
       userId === session.user.id ||
-      userId === myProfile?.username ||
-      userId === myProfile?.display_name || // Added: check if the string is your username
+      userId?.toString().replace('@', '') === myProfile?.username ||
       profile?.id === session.user.id
     )
   );
@@ -512,58 +512,65 @@ export default function ProfilePage({ userId, passedData, onClose }) {
 
   const { following: isFollowing, toggle: toggleFollow, loading: followLoading } =
     useFollow(userId, initFollowing, profile, setProfile);
+// Inside ProfilePage.jsx
+const loadMetadata = useCallback(async () => {
+  if (!userId) return;
 
-  /* ── Load profile + follow status ── */
-  /* ── Load profile + follow status ── */
-  const loadMetadata = useCallback(async () => {
-    if (!userId) return;
-    if (isOwn && myProfile && !profile) {
-      setProfile(myProfile);
-      return;
+  // 1. Clean the ID (remove @ if present)
+  const cleanId = String(userId).replace(/^@/, "").trim();
+  
+  // 2. Determine if cleanId is a UUID or a Username
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(cleanId);
+
+  try {
+    setLoading(true);
+    let p = null;
+
+    if (isUUID) {
+      p = await profileAPI.getById(cleanId);
+    } else {
+      // THIS IS THE CRITICAL LINE for mentions
+      p = await profileAPI.getByUsername(cleanId);
     }
 
-    try {
-      // 1. Clean the ID: Remove '@' and whitespace
-      const cleanId = userId.startsWith('@') ? userId.slice(1).trim() : userId.trim();
-
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(cleanId);
-
-      const p = isUUID
-        ? await profileAPI.getById(cleanId)
-        : await profileAPI.getByUsername(cleanId);
-
-      if (p) {
-        setProfile(p);
-        if (session?.user?.id && session.user.id !== p.id) {
-          const status = await followAPI.isFollowing(session.user.id, p.id);
-          setInitFollowing(status);
-        }
-      } else {
-        // 2. Handle User Not Found: Clear profile so UI shows "User not found"
-        setProfile(null);
-      }
-    } catch (e) {
-      console.error("Profile load error:", e);
-      setProfile(null);
-    } finally {
-      setLoading(false);
+    if (p) {
+      setProfile(p);
+      // ... handle follow status ...
+    } else {
+      setProfile(null); // This triggers the "User not found" UI
     }
-  }, [userId, session]);
+  } catch (err) {
+    console.error(err);
+    setProfile(null);
+  } finally {
+    setLoading(false);
+  }
+}, [userId]);
 
   /* ── Initial sync ── */
   useEffect(() => {
+    // Reset state for the new user
     setVideos([]);
     setActiveTab("videos");
-    if (passedData) setProfile(passedData);
-    else if (isOwn && myProfile) setProfile(myProfile);
-    else if (activeProfile &&
-      (activeProfile.username === userId || activeProfile.id === userId)) {
-      setProfile(activeProfile);
-    }
-    loadMetadata();
-  }, [userId, loadMetadata]);
 
-  /* ── Tab data fetcher ── */
+    // Try to set profile from existing data first for speed
+    if (passedData) {
+      setProfile(passedData);
+      setLoading(false);
+    } else if (isOwn && myProfile) {
+      setProfile(myProfile);
+      setLoading(false);
+    } else if (activeProfile && (activeProfile.username === userId || activeProfile.id === userId)) {
+      setProfile(activeProfile);
+      setLoading(false);
+    } else {
+      // If no local data, trigger the fetch
+      setLoading(true);
+    }
+
+    loadMetadata();
+  }, [userId, loadMetadata, isOwn, myProfile, passedData, activeProfile]);
+
   // Line 150
   useEffect(() => {
     if (!profile?.id) return;

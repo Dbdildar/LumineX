@@ -115,7 +115,13 @@ export default function Footer() {
     // App Logic
     if (item.tab) setTab(item.tab);
     if (item.auth) setAuthModal(item.auth);
-    if (item.upload) setUploadModal(true);
+    if (item.upload) {
+      if (session) {
+        setUploadModal(true);
+      } else {
+        setAuthModal("login");
+      }
+    }
     if (item.profile && session && profile) setTab(`profile:${profile.id}`);
     else if (item.profile && !session) setAuthModal("login");
   };
@@ -271,6 +277,8 @@ export default function Footer() {
                 {items.map(item => {
                   // 1. Check if the item is Login or Sign Up AND a session exists
                   const isDisabled = (item.label === "Login" || item.label === "Sign Up") && session;
+
+
                   const isFunctional = item.group === "Legal" || item.group === "Support" || item.tab || item.auth || item.upload || item.profile;
                   return (
                     <li key={item.label}>

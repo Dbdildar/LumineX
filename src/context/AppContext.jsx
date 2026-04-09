@@ -16,7 +16,17 @@ export function AppProvider({ children }) {
   const [uploadModal, setUploadModal] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifCount, setNotifCount] = useState(0);
-  const [theme, setThemeState] = useState(() => localStorage.getItem("lx_theme") || "dark");
+  // This ensures "light" is the fallback if nothing is saved
+// In AppContext.js
+const [theme, setThemeState] = useState(() => {
+  const saved = localStorage.getItem("lx_theme");
+  // If NOTHING is saved, strictly return "light"
+  if (!saved) return "light";
+  return saved;
+});
+
+
+
   const toastTimer = useRef(null);
   const [activeProfile, setActiveProfile] = useState(null);
   const [prevTab, setPrevTab] = useState("home");
@@ -35,24 +45,32 @@ const changeTab = useCallback((newTab) => {
 
   
 // 1. Add this function inside your AppProvider component
+// In AppContext.js, update incrementView
 const incrementView = async (videoId) => {
-    try {
-      const { data: newCount, error } = await supabase.rpc('increment_views', { 
-        vid: videoId 
-      });
+  try {
+    const { data: newCount, error } = await supabase.rpc('increment_views', { 
+      vid: videoId 
+    });
 
-      if (error) throw error;
+    if (error) throw error;
 
-      window.dispatchEvent(new CustomEvent('video_view_updated', {
-        detail: { 
-          videoId: videoId, 
-          views: newCount 
-        }
-      }));
-    } catch (err) {
-      console.error("View increment failed:", err);
-    }
-  };
+    // Dispatch for the Modal to hear it
+    window.dispatchEvent(new CustomEvent('video_view_updated', {
+      detail: { videoId: videoId, views: newCount }
+    }));
+
+    // OPTIONAL: If the video is in the global player state, update it there too
+    setPlayer(prev => {
+      if (prev?.id === videoId) {
+        return { ...prev, views: newCount, views_count: newCount };
+      }
+      return prev;
+    });
+
+  } catch (err) {
+    console.error("View increment failed:", err);
+  }
+};
 
 const playVideo = useCallback(async (video) => {
     if (video.is_vip && !profile?.is_vip) { 
@@ -65,16 +83,30 @@ const playVideo = useCallback(async (video) => {
   // Apply theme to document
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "light") root.classList.add("light");
-    else root.classList.remove("light");
+    if (theme === "dark") root.classList.add("dark");
+    else root.classList.remove("dark");
     localStorage.setItem("lx_theme", theme);
   }, [theme]);
 
-  const toggleTheme = useCallback(() => {
+
+const toggleTheme = useCallback(() => {
+  setThemeState(prev => {
+    const next = prev === "light" ? "dark" : "light";
+    
+    // Smooth transition logic
     document.documentElement.classList.add("theme-transition");
-    setThemeState(t => t === "dark" ? "light" : "dark");
-    setTimeout(() => document.documentElement.classList.remove("theme-transition"), 400);
-  }, []);
+    
+    // Update the meta tag for mobile browser bars
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', next === 'dark' ? '#030308' : '#f8f8ff');
+
+    setTimeout(() => {
+      document.documentElement.classList.remove("theme-transition");
+    }, 400);
+
+    return next;
+  });
+}, []);
 
   // Auth init
   useEffect(() => {

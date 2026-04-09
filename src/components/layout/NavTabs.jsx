@@ -9,7 +9,7 @@ const TABS = [
   { id: "trending", label: "🔥 Trending" },
   { id: "new", label: "✨ New" },
   { id: "categories", label: "🏷 Categories" },
-  { id: "channels", label: "📺 Channels" },
+  { id: "channels", label: "🌟 Creators" },
   { id: "saved", label: "❤️ Saved" },
   { id: "history", label: "🕐 History" },
   { id: "vip", label: "💎 VIP" }
@@ -25,17 +25,30 @@ const MOB = [
 ];
 
 export default function NavTabs() {
-  const { tab, setTab, setSearch, setUploadModal, setVipModal } = useApp();
+ // Around line 27
+const { tab, setTab, setSearch, setUploadModal, setVipModal, session, setAuthModal } = useApp();
   const isMobile = useIsMobile();
   const [showMore, setShowMore] = useState(false);
 
-  const handlePress = (id) => {
-    if (id === "upload") return setUploadModal(true);
-    if (id === "more") return setShowMore(!showMore);
-    if (id === "search") return setSearch(true);
-    setTab(id);
-    setShowMore(false);
-  };
+ // NavTabs.jsx
+
+const handlePress = (id) => {
+  if (id === "upload") {
+    // If there is a session, open the upload modal
+    if (session) {
+      return setUploadModal(true);
+    } else {
+      // If no session, show the login modal instead
+      return setAuthModal("login");
+    }
+  }
+  
+  if (id === "more") return setShowMore(!showMore);
+  if (id === "search") return setSearch(true);
+  
+  setTab(id);
+  setShowMore(false);
+};
 
   if (isMobile) return (
     <>
@@ -50,7 +63,7 @@ export default function NavTabs() {
           {/* Added Saved Button Here */}
           <button onClick={() => {setTab("saved"); setShowMore(false);}} style={moreBtnStyle}>❤️ Saved</button>
           
-          <button onClick={() => {setTab("channels"); setShowMore(false);}} style={moreBtnStyle}>📺 Channels</button>
+          <button onClick={() => {setTab("channels"); setShowMore(false);}} style={moreBtnStyle}>🌟 Creators</button>
           <button onClick={() => {setTab("categories"); setShowMore(false);}} style={moreBtnStyle}>🏷 Categories</button>
           <button onClick={() => {setVipModal(true); setShowMore(false);}} style={{...moreBtnStyle, color: "#fbbf24"}}>💎 VIP Plan</button>
          <button onClick={() => {setTab("history"); setShowMore(false);}} style={moreBtnStyle}>🕐 History</button>

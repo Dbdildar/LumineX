@@ -226,7 +226,7 @@ function HeroBanner({ items }) {
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg,rgba(3,3,8,.95) 0%,rgba(3,3,8,.5) 60%,transparent 100%)" }} />
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", padding: isMobile ? 16 : 32 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 }}>🔥 Featured</div>
-        <h2 style={{ fontSize: isMobile ? 18 : 26, fontWeight: 900, marginBottom: 8, maxWidth: 480, color: C.text, lineHeight: 1.3 }}>{item.title}</h2>
+        <h2 style={{ fontSize: isMobile ? 18 : 26, fontWeight: 900, marginBottom: 8, maxWidth: 480, color: C.muted, lineHeight: 1.3 }}>{item.title}</h2>
         <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
           {item.profiles?.display_name || item.channel || "Creator"} · {fmtNum(displayViews)} views views
         </div>

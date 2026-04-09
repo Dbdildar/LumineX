@@ -4,7 +4,7 @@ import { useApp } from "../../context/AppContext";
 import { authAPI, profileAPI } from "../../lib/supabase";
 import { AVATARS } from "../../data/theme";
 import { supabase } from "../../lib/supabase";
-import { data } from "react-router-dom";
+
 
 /* ═══════════════════════════════════════════════════════════════════
    GLOBAL STYLES
@@ -104,14 +104,14 @@ export default function AuthModal() {
         className="auth-overlay glass"
         onClick={e => e.target === e.currentTarget && onClose()}
         style={{
-          position: "fixed", inset: 0, zIndex: 9500,
+          position: "fixed", inset: 0, zIndex: 10001,
           background: "rgba(0,0,0,.87)",
           display: "flex", alignItems: "center", justifyContent: "center",
           padding: "16px", overflowY: "auto",
         }}
       >
         {/* Ambient blobs */}
-        <div aria-hidden style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+        <div aria-hidden style={{ position: "fixed", inset: 0, pointerEvents: "none", overflow: "hidden",zIndex: -1 }}>
           <div style={{ position: "absolute", top: "8%", left: "12%", width: 380, height: 380, borderRadius: "50%", background: `${C.accent}13`, filter: "blur(90px)" }} />
           <div style={{ position: "absolute", bottom: "6%", right: "10%", width: 310, height: 310, borderRadius: "50%", background: `${C.accent2}0f`, filter: "blur(90px)" }} />
         </div>

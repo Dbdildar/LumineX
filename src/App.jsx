@@ -18,7 +18,7 @@ import CategoriesPage from "./pages/CategoriesPage";
 import ChannelsPage from "./pages/ChannelsPage";
 import VIPPage from "./pages/VIPPage";
 import Footer from "./components/layout/Footer";
-import { useLocation } from "react-router-dom";
+
 
 function AppInner() {
   const { tab, player, setTab, setPlayer, toast, theme, prevTab } = useApp();

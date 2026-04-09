@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { C, Avatar, Spinner, timeAgo, fmtNum } from "../ui/index";
 import { useApp } from "../../context/AppContext";
-import { commentAPI } from "../../lib/supabase";
+import { commentAPI, profileAPI } from "../../lib/supabase";
 
 
 /* ─────────────────────────────────────────────────────────────
@@ -165,6 +165,7 @@ function UsernameChip({ username, display, accent = false, style: extraStyle }) 
 function CommentInput({
   videoId, parentId, placeholder, compact,
   autoFocus, onSuccess, onCancel, videoOwnerId,
+  replyToUsername,
 }) {
   const { session, setAuthModal, profile } = useApp();
   const [text, setText] = useState("");
@@ -174,19 +175,19 @@ function CommentInput({
 
   useEffect(() => { if (autoFocus) ref.current?.focus(); }, [autoFocus]);
 
-  // Inside CommentInput component
   const submit = async () => {
     if (!session) { setAuthModal("login"); return; }
     if (!text.trim()) return;
     setLoading(true);
     try {
-      // 1. Extract the username from the placeholder (e.g., "Reply to @john_doe...")
-      const replyToUser = parentId && placeholder?.includes("@")
+      // 1. Extract the name from the placeholder (this is usually the Display Name)
+      const nameFromPlaceholder = placeholder?.includes("@")
         ? placeholder.split("@")[1].replace("...", "").trim()
         : null;
 
-      // 2. Extract the display name if available (you'll pass this via props in step 2)
-      const replyToDisplayName = placeholder?.split("@")[1]?.replace("...", "").trim();
+      // 2. CRITICAL FIX: Prioritize the unique replyToUsername prop (e.g., "dildar") 
+      // over the placeholder string (e.g., "Dildar Ahmed")
+      const replyToUserIdentifier = replyToUsername || nameFromPlaceholder;
 
       const data = await commentAPI.add({
         videoId,
@@ -194,17 +195,16 @@ function CommentInput({
         body: text.trim(),
         parentId,
         videoOwnerId,
-        reply_to_user: replyToUser,
+        reply_to_user: replyToUserIdentifier, // This will now correctly be the username
       });
 
       setText("");
       setFocused(false);
 
-      // 3. Pass both to the success handler so the UI updates immediately
       onSuccess?.({
         ...data,
-        reply_to_user: replyToUser,
-        reply_to_display_name: replyToDisplayName // ADD THIS
+        reply_to_user: replyToUserIdentifier,
+        reply_to_display_name: nameFromPlaceholder // Keep the pretty name for UI display
       });
     } catch (e) {
       console.error(e);
@@ -324,9 +324,9 @@ function CommentInput({
 function CommentItem({
   comment, videoId, videoOwnerId,
   likedIds, onLikeToggle, onDelete, onNewComment,
-  depth = 0,
+  depth = 0, allComments = [],
 }) {
-  const { session, setActiveProfile, setTab, setPlayer } = useApp();
+  const { session, setActiveProfile, setTab, setPlayer, player } = useApp();
 
   const [replying, setReplying] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
@@ -334,32 +334,93 @@ function CommentItem({
   const pf = comment.profiles || {};
   const isRoot = depth === 0;
 
-  /* ── navigate to commenter's profile ── */
- const goToProfile = (e, profileData) => {
-  if (e) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
+  const normalizeProfileKey = (value) => String(value || "").replace(/^@/, "").trim().toLowerCase();
 
-  // 1. Get the unique identifier (Username is best for routing)
-  const identifier = profileData?.username || profileData?.id;
-  if (!identifier) return;
+  const walkComments = (items, visitor) => {
+    for (const item of items || []) {
+      const result = visitor(item);
+      if (result) return result;
+      const nested = walkComments(item?.replies || [], visitor);
+      if (nested) return nested;
+    }
+    return null;
+  };
 
-  // 2. Pause the video so it doesn't keep playing in the background
-  window.dispatchEvent(new CustomEvent('lx_pause_video'));
+  // Inside CommentItem or CommentSection
+const findProfileInComments = (username) => {
+  const clean = String(username || "").replace(/^@/, "").trim().toLowerCase();
+  if (!clean || !allComments?.length) return null;
 
-  // 3. Close the Player Modal 
-  // If this is missing, the profile page changes BEHIND the modal, 
-  // making it look like nothing happened.
-  if (setPlayer) setPlayer(null);
-
-  // 4. Update the App State
-  setActiveProfile(profileData);
-  setTab(`profile:${identifier}`);
-
-  // 5. Scroll to top immediately
-  window.scrollTo(0, 0);
+  return walkComments(allComments, (item) => {
+    const p = item?.profiles;
+    if (!p) return null;
+    // MATCH ONLY BY USERNAME
+    if (String(p.username || "").toLowerCase() === clean) return p;
+    return null;
+  });
 };
+
+
+  const goToProfile = async (e, profileData) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    if (!profileData) return;
+
+    // Ensure we have the most accurate identifier available
+    const identifier = profileData.username || profileData.id;
+    if (!identifier) return;
+
+    window.dispatchEvent(new CustomEvent('lx_pause_video'));
+
+    // Set the active profile so the ProfilePage has data immediately
+    setActiveProfile(profileData);
+
+    // Set the tab using the identifier
+    setTab(`profile:${identifier}`);
+    window.scrollTo(0, 0);
+
+    // Close the player if it's open
+    if (setPlayer) setPlayer(null);
+  };
+
+  /* ── Updated: Robust Mention Resolution ── */
+  const goToMentionProfile = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    // 1. Try to find the mentioned user in the existing comment list
+    // Use reply_to_user because it's the unique username string
+    const targetUsername = comment.reply_to_user;
+    if (!targetUsername) return;
+
+    const foundProfile = findProfileInComments(targetUsername);
+    console.log("Target Username:", comment.reply_to_user);
+   
+    if (foundProfile) {
+      // If found in local state, navigate immediately
+      goToProfile(null, foundProfile);
+    } else {
+      // 2. Fallback: If not in local comments, fetch from API by username
+      try {
+        // Create a minimal object to show a loading state if needed, 
+        // but ideally fetch the full data
+        const fetched = await profileAPI.getByUsername(targetUsername);
+        if (fetched) {
+          goToProfile(null, fetched);
+        } else {
+          // Ultimate fallback: navigate with what we have
+          goToProfile(null, { username: targetUsername });
+        }
+      } catch (err) {
+        console.error("Failed to fetch mentioned profile:", err);
+      }
+    }
+  };
 
   return (
     <div style={{ marginBottom: isRoot ? 16 : 8, paddingLeft: isRoot ? 0 : 44 }}>
@@ -407,10 +468,7 @@ function CommentItem({
 
             {comment.reply_to_user && (
               <span
-                onClick={e => goToProfile(e, {
-                  username: comment.reply_to_user,
-                  display_name: comment.reply_to_display_name
-                })}
+                onClick={goToMentionProfile}
                 style={{
                   color: C.accent, fontWeight: 700,
                   marginRight: 6, cursor: "pointer",
@@ -433,11 +491,11 @@ function CommentItem({
           <div style={{ display: "flex", gap: 14, marginTop: 5, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontSize: 11, color: C.muted }}>{timeAgo(comment.created_at)}</span>
 
-          {comment.likes_count > 0 && (
-  <span style={{ fontSize: 11, fontWeight: 700, color: C.muted }}>
-    {fmtNum(comment.likes_count)} {comment.likes_count === 1 ? "like" : "likes"}
-  </span>
-)}
+            {comment.likes_count > 0 && (
+              <span style={{ fontSize: 11, fontWeight: 700, color: C.muted }}>
+                {fmtNum(comment.likes_count)} {comment.likes_count === 1 ? "like" : "likes"}
+              </span>
+            )}
 
             <button
               onClick={() => setReplying(!replying)}
@@ -478,8 +536,8 @@ function CommentItem({
               <CommentInput
                 videoId={videoId}
                 parentId={comment.id}
-                // Keep the placeholder as is, it acts as our source for the name
                 placeholder={`Reply to @${pf.display_name || pf.username}...`}
+                replyToUsername={pf.username}
                 compact
                 autoFocus
                 onSuccess={data => {
@@ -507,7 +565,7 @@ function CommentItem({
                   }}
                 >
                   <div style={{ width: 20, height: 1, background: C.border }} />
-                 View {fmtNum(comment.replies.length)} {comment.replies.length === 1 ? "reply" : "replies"}
+                  View {fmtNum(comment.replies.length)} {comment.replies.length === 1 ? "reply" : "replies"}
                 </button>
               ) : (
                 <>
@@ -522,6 +580,7 @@ function CommentItem({
                       onLikeToggle={onLikeToggle}
                       onDelete={onDelete}
                       onNewComment={onNewComment}
+                      allComments={allComments}
                     />
                   ))}
                   <button
@@ -604,30 +663,30 @@ export default function CommentSection({ videoId, videoOwnerId }) {
   const [showCount, setShowCount] = useState(8);
   const subRef = useRef(null);
 
- 
 
-const load = useCallback(async () => {
-  setLoading(true);
-  try {
-    const data = await commentAPI.getForVideo(videoId);
-    const nestedData = nestComments(data);
 
-    // Only set the data retrieved from the API
-    setComments(nestedData);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await commentAPI.getForVideo(videoId);
+      const nestedData = nestComments(data);
 
-    if (session && data.length > 0) {
-      const allIds = data.map(c => c.id);
-      const liked = await commentAPI.getLikedIds(session.user.id, allIds);
-      setLikedIds(liked);
+      // Only set the data retrieved from the API
+      setComments(nestedData);
+
+      if (session && data.length > 0) {
+        const allIds = data.map(c => c.id);
+        const liked = await commentAPI.getLikedIds(session.user.id, allIds);
+        setLikedIds(liked);
+      }
+    } catch (e) {
+    
+      // Set to empty array on error instead of loading dummies
+      setComments([]);
+    } finally {
+      setLoading(false);
     }
-  } catch (e) {
-    console.error("Load error:", e);
-    // Set to empty array on error instead of loading dummies
-    setComments([]); 
-  } finally {
-    setLoading(false);
-  }
-}, [videoId, session]); // Removed loadDummy from dependencies
+  }, [videoId, session]); // Removed loadDummy from dependencies
 
   useEffect(() => { load(); }, [load]);
 
@@ -745,6 +804,7 @@ const load = useCallback(async () => {
                 onLikeToggle={handleLike}
                 onDelete={handleDelete}
                 onNewComment={handleNewComment}
+                allComments={comments}
               />
             ))}
           </div>

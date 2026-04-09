@@ -162,34 +162,31 @@ const SIDEBAR_ADS = [
 // HELPER — read video from sessionStorage, preserving created_at and all
 // fields from the original initVideo so nothing goes missing on cache hit
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Update this function inside PlayerModal.jsx
 function buildVideoState(initVideo) {
   try {
     const cached = sessionStorage.getItem(`video_${initVideo.id}`);
+    // Get views from the prop passed from the Home page (latest known)
     const initViews = Number(initVideo.views_count ?? initVideo.views ?? 0);
-
-    let finalState = { ...initVideo };
 
     if (cached) {
       const parsed = JSON.parse(cached);
       const cachedViews = Number(parsed.views_count ?? parsed.views ?? 0);
       
-      finalState = {
+      return {
         ...initVideo,
         ...parsed,
-        views: Math.max(cachedViews, initViews)
+        // ALWAYS take the highest number between Cache and the Prop
+        views: Math.max(cachedViews, initViews) 
       };
-    } else {
-      finalState.views = initViews;
     }
-
-    // CRITICAL: Remove the old keys so the UI doesn't accidentally use them
-    delete finalState.views_count; 
-    
-    return finalState;
+    return { ...initVideo, views: initViews };
   } catch (e) {
     return { ...initVideo, views: Number(initVideo.views_count ?? 0) };
   }
 }
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SUB-COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -647,55 +644,44 @@ export default function PlayerModal({ video: initVideo, onClose }) {
   // ONE useEffect only. Guard is reset solely in the initVideo.id effect above.
 // ── View count increment ──────────────────────────────────────────────────
   useEffect(() => {
-    // 1. Reset guard when the video actually changes
-    // (Note: This is usually handled by the ID change, but we ensure it here)
     const timer = setTimeout(async () => {
-      // 2. Strict Check: Only increment if playing, no ad, and not already done
       if (video?.id && !viewIncremented.current && playing && !adActive) {
-        
-        // 3. Set guard immediately BEFORE the async call to block duplicates
         viewIncremented.current = true;
-        
         try {
+          // incrementView dispatches video_view_updated with the actual DB count
+          // The event listener below will update local state with the exact DB value
           await incrementView(video.id);
-          
-          // 4. Update local state and SessionStorage for persistence
-          setVideo(prev => {
-            const updated = { 
-              ...prev, 
-              views: (Number(prev.views) || 0) + 1 
-            };
-            sessionStorage.setItem(`video_${video.id}`, JSON.stringify(updated));
-            
-            // 5. Notify other tabs/components (if applicable)
-            window.dispatchEvent(new CustomEvent("video_view_updated", {
-              detail: { videoId: video.id, views: updated.views }
-            }));
-            
-            return updated;
-          });
         } catch (err) {
           console.error("Failed to increment view:", err);
-          // Only reset on error so it can retry if the user pauses/plays
           viewIncremented.current = false;
         }
       }
-    }, 5000); // 5 second watch threshold
-
-    // 6. CRITICAL: Clear timer if user pauses or closes modal before 5s
+    }, 5000);
     return () => clearTimeout(timer);
   }, [playing, video?.id, adActive, incrementView]);
 
   // ── Sync view count from other tabs ──────────────────────────────────────
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.detail.videoId === video.id) {
-        setVideo(prev => ({ ...prev, views: e.detail.views }));
+// Update this useEffect in PlayerModal.jsx
+useEffect(() => {
+  const handler = (e) => {
+    if (e.detail.videoId === video.id) {
+      const newViews = e.detail.views;
+      
+      // 1. Update local UI
+      setVideo(prev => ({ ...prev, views: newViews }));
+      
+      // 2. Update Cache immediately so the "re-open" is seamless
+      const cached = sessionStorage.getItem(`video_${video.id}`);
+      let updatedData = { views: newViews };
+      if (cached) {
+        updatedData = { ...JSON.parse(cached), views: newViews };
       }
-    };
-    window.addEventListener("video_view_updated", handler);
-    return () => window.removeEventListener("video_view_updated", handler);
-  }, [video.id]);
+      sessionStorage.setItem(`video_${video.id}`, JSON.stringify(updatedData));
+    }
+  };
+  window.addEventListener("video_view_updated", handler);
+  return () => window.removeEventListener("video_view_updated", handler);
+}, [video.id]);
 
   // ── Load related videos ───────────────────────────────────────────────────
   useEffect(() => {

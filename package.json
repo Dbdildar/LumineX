@@ -4,14 +4,18 @@
   "private": true,
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
+    "@vitejs/plugin-react": "^6.0.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.13.1",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "vite": "^8.0.6"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build"
+    "dev": "vite",
+    "build": "vite build",
+    "build:dev": "vite build",
+    "preview": "vite preview"
   },
   "eslintConfig": {
     "extends": [
