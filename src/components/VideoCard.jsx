@@ -123,15 +123,33 @@ export default function VideoCard({ video, cardWidth, compact, showViews, showCh
   function onEnter() { if (isMobile) return; setHov(true); timerRef.current = setTimeout(play, 350); }
   function onLeave() { if (isMobile) return; clearTimeout(timerRef.current); setHov(false); stop(); }
 
+  // Mobile: long-press = play preview in card, single tap = open PlayerModal
+  const touchStartTime = useRef(0);
+  const longPressTriggered = useRef(false);
+
   function onTouchStart(e) {
-    if (!isMobile) return; e.preventDefault(); setLpOn(true); setLpProg(0);
+    if (!isMobile) return;
+    e.preventDefault();
+    touchStartTime.current = Date.now();
+    longPressTriggered.current = false;
+    setLpOn(true); setLpProg(0);
     const t0 = Date.now();
     tickRef.current = setInterval(() => setLpProg(Math.min((Date.now() - t0) / 6, 100)), 16);
-    lpRef.current = setTimeout(() => { clearInterval(tickRef.current); setLpOn(false); setHov(true); play(); }, 600);
+    lpRef.current = setTimeout(() => {
+      longPressTriggered.current = true;
+      clearInterval(tickRef.current); setLpOn(false); setHov(true); play();
+    }, 600);
   }
   function onTouchEnd() {
-    if (!isMobile) return; clearTimeout(lpRef.current); clearInterval(tickRef.current);
-    setLpOn(false); setLpProg(0); if (!active) setHov(false);
+    if (!isMobile) return;
+    clearTimeout(lpRef.current); clearInterval(tickRef.current);
+    setLpOn(false); setLpProg(0);
+    // If long press was triggered, just stop preview — don't open player
+    if (longPressTriggered.current) {
+      // Keep preview playing, user can tap again to open
+      return;
+    }
+    if (!active) setHov(false);
   }
 
   useEffect(() => {
@@ -168,7 +186,7 @@ export default function VideoCard({ video, cardWidth, compact, showViews, showCh
 }, [video.id]);
 
   return (
-    <div onClick={() => !lpOn && playVideo(video)} onMouseEnter={onEnter} onMouseLeave={onLeave}
+    <div onClick={() => { if (isMobile && longPressTriggered.current) { longPressTriggered.current = false; stop(); setHov(false); return; } if (!lpOn) playVideo(video); }} onMouseEnter={onEnter} onMouseLeave={onLeave}
       onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onTouchMove={onTouchEnd}
       style={{
         background: hov ? C.cardH : C.card, borderRadius: 14, overflow: "hidden", cursor: "pointer",

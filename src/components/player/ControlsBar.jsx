@@ -261,7 +261,7 @@ export default function ControlsBar({
       pointerEvents: showCtrl ? "auto" : "none", zIndex: 30,
     }}>
       <Seekbar prog={prog} dur={dur} buffered={buffered || 0} onSeek={handleSeek} isBuffering={isBuffering}/>
-      <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 4 : 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 4 : 8, ...(isMobile ? { overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none", paddingBottom: 2 } : {}) }}>
         <PBtn onClick={togglePlay} title="Space">{playing ? "⏸" : "▶"}</PBtn>
         <PBtn onClick={() => seekBy(-10)} title="-10s">
           <span style={{ display: "flex", flexDirection: "column", alignItems: "center", lineHeight: 1 }}>
@@ -279,10 +279,10 @@ export default function ControlsBar({
             onChange={e => onVolume(+e.target.value)}
             style={{ width: isFS ? 90 : 70, accentColor: "var(--accent)", cursor: "pointer" }}/>
         )}
-        <span style={{ fontSize: 11, color: "rgba(255,255,255,.65)", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: 11, color: "rgba(255,255,255,.65)", whiteSpace: "nowrap", flexShrink: 0 }}>
           {fmtTime(curTime)} / {fmtTime(dur)}
         </span>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 5, alignItems: "center" }}>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 5, alignItems: "center", flexShrink: 0 }}>
           <CaptionPicker selectedLang={captionLang || "off"} onSelect={onCaptionChange} videoEl={vRef.current} captionStatus={captionStatus}/>
           <div ref={speedRef} style={{ position: "relative" }}>
             <button onClick={() => setSpeedMenu(s => !s)} style={{
@@ -293,7 +293,7 @@ export default function ControlsBar({
               fontFamily: "inherit", fontWeight: 700, transition: "all .15s",
             }}>{speed}×</button>
             {speedMenu && (
-              <div style={{ position: "absolute", bottom: "calc(100% + 8px)", right: 0, background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden", zIndex: 999, minWidth: 100, boxShadow: "0 8px 30px rgba(0,0,0,.8)", animation: "fadeUp .18s ease" }}>
+              <div style={{ position: "absolute", bottom: "calc(100% + 8px)", right: 0, background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden", zIndex: 999, minWidth: 100, boxShadow: "0 8px 30px rgba(0,0,0,.8)", animation: "fadeUp .18s ease", ...(isMobile ? { maxHeight: 200, overflowY: "auto" } : {}) }}>
                 <div style={{ padding: "8px 12px 6px", fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: .8, borderBottom: `1px solid ${C.border}` }}>Speed</div>
                 {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map(s => (
                   <div key={s} onClick={() => { setSpeedTo(s); setSpeedMenu(false); }}
