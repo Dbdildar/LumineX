@@ -182,23 +182,24 @@ function Seekbar({ prog, dur, buffered, onSeek }) {
   );
 }
 
-// ── Mobile Bottom Sheet ────────────────────────────────────────────────
 function MobileSheet({ open, onClose, title, children }) {
   if (!open) return null;
 
   return (
     <>
+      {/* Backdrop */}
       <div
         onClick={onClose}
         style={{
           position: "fixed",
           inset: 0,
           background: "rgba(0,0,0,.75)",
-          zIndex: 9999998, // Extremely high to stay above player
+          zIndex: 2000000, 
           WebkitTapHighlightColor: "transparent",
           backdropFilter: "blur(4px)",
         }}
       />
+      {/* Sheet */}
       <div
         style={{
           position: "fixed",
@@ -208,18 +209,15 @@ function MobileSheet({ open, onClose, title, children }) {
           background: C.bg2 || "#1a1a2e",
           borderRadius: "24px 24px 0 0",
           borderTop: `1px solid ${C.border}`,
-          zIndex: 9999999, // Extremely high
-          maxHeight: "85vh", // Increased height for better visibility
-          height: "auto",
+          zIndex: 2000001,
+          maxHeight: "80vh", // Limits the sheet height
           display: "flex",
           flexDirection: "column",
           boxShadow: "0 -10px 40px rgba(0,0,0,1)",
           animation: "slideUpSheet .3s cubic-bezier(0.36, 0.07, 0.19, 0.97)",
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
-        onTouchStart={(e) => e.stopPropagation()}
-        onTouchEnd={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         <style>{`
           @keyframes slideUpSheet {
@@ -242,34 +240,17 @@ function MobileSheet({ open, onClose, title, children }) {
           borderBottom: `1px solid ${C.border}44`,
           flexShrink: 0,
         }}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: C.text, textTransform: "uppercase", letterSpacing: 1 }}>{title}</span>
-          <button
-            onClick={onClose}
-            style={{
-              background: "rgba(255,255,255,.1)",
-              border: "none",
-              borderRadius: "50%",
-              color: "white",
-              fontSize: 12,
-              width: 32,
-              height: 32,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}
-          >
-            ✕
-          </button>
+          <span style={{ fontSize: 14, fontWeight: 800, color: C.text, textTransform: "uppercase" }}>{title}</span>
+          <button onClick={onClose} style={{ background: "rgba(255,255,255,.1)", border: "none", borderRadius: "50%", color: "white", width: 32, height: 32 }}>✕</button>
         </div>
 
-        {/* FIX: Scroll Container with flex-grow and proper overflow */}
+        {/* FIX: Use flex-basis to ensure the list takes up proper space and is scrollable */}
         <div style={{ 
             overflowY: "auto", 
-            flex: 1, 
+            flex: "1 0 auto", 
             WebkitOverflowScrolling: "touch", 
             padding: "8px 0",
-            display: "block" // Ensure it doesn't flex-center its children
+            minHeight: "300px" // Forces the top half to show by giving the list a base height
         }}>
           {children}
         </div>
@@ -277,7 +258,6 @@ function MobileSheet({ open, onClose, title, children }) {
     </>
   );
 }
-
 // ── Caption Picker ─────────────────────────────────────────────────────────────
 function CaptionPicker({ selectedLang, onSelect, videoEl, captionStatus, isMobile, onMenuToggle }) {
   const [open, setOpen] = useState(false);
