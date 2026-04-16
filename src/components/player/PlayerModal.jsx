@@ -98,16 +98,6 @@ function SeekFlash({ seekFlash, arcProg }) {
     <div style={{ position:"absolute",inset:0,pointerEvents:"none",zIndex:20,animation:"fadeIn .1s" }}>
       <Panel side="left"  active={seekFlash==="bwd"} icon="⏪" label="-10s"/>
       <Panel side="right" active={seekFlash==="fwd"} icon="⏩" label="+10s"/>
-      {seekFlash==="3x" && (
-        <div style={{ position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center" }}>
-          <div style={{
-            background:"rgba(0,0,0,.75)",backdropFilter:"blur(8px)",
-            border:`2px solid ${C.accent}`,borderRadius:16,padding:"14px 32px",
-            fontSize:24,fontWeight:900,color:C.accent,letterSpacing:4,
-            boxShadow:`0 0 40px ${C.accent}44`,animation:"scaleIn .2s ease",
-          }}>⚡ 3× SPEED</div>
-        </div>
-      )}
     </div>
   );
 }
@@ -572,12 +562,17 @@ const onPlaying = () => {
     clearTimeout(lpTimerRef.current);
 
     // Release 3× speed
-    if (is3x) {
-      const v=vRef.current;
-      if (v) { v.playbackRate=1; setSpeed(1); }
-      setIs3x(false); setSeekFlash(null); setArcProg(0);
-      return;
+   if (is3x) {
+    const v = vRef.current;
+    if (v) { 
+      v.playbackRate = 1; // Explicitly set back to 1
     }
+    setSpeed(1);       // Update state
+    setIs3x(false);    // Update state
+    setSeekFlash(null);
+    setArcProg(0);
+    return; // Stop here so it doesn't trigger a "tap" as well
+  }
     if (adActive) return;
 
     const rect    = e.currentTarget.getBoundingClientRect();
@@ -698,8 +693,12 @@ const onPlaying = () => {
             }}
           >
             <video ref={vRef} src={video.video_url} playsInline
-              preload="auto"
+              preload="metadata"
               autoPlay
+              onCanPlay={(e) => {
+    e.target.play().catch(() => {});
+    setIsBuffering(false);
+  }}
               onTimeUpdate={()=>{ if(adActive&&vRef.current&&vRef.current.currentTime>0){vRef.current.currentTime=0;} }}
               onPlay={()=>{ if(adActive){vRef.current.pause();vRef.current.currentTime=0;}else setPlaying(true); }}
               onPause={()=>setPlaying(false)}
