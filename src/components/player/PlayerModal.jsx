@@ -300,6 +300,7 @@ export default function PlayerModal({ video: initVideo, onClose }) {
   const [dlPending,    setDlPending]   = useState(false);
   const [sidebarAd,    setSidebarAd]   = useState(()=>SIDEBAR_ADS[0]);
   const bufferingTimeout = useRef(null); // Add this near your other refs
+  const [activeMenu, setActiveMenu] = useState(null);
 // Near your other useState hooks
   const { liked, count: likeCount, toggle: toggleLike } = useVideoLike(video.id, false, video.likes_count);
 
@@ -325,9 +326,6 @@ const togglePlay = useCallback(() => {
   }
 }, [revealCtrl, adActive]);
 
-// Add the state for the center menus
-const [activeMenu, setActiveMenu] = useState(null); // 'speed' or 'caption'
-  // Reset on video change
   useEffect(() => {
     viewGuard.current = false;
     setVideo(buildVideoState(initVideo));
