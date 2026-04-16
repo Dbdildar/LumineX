@@ -309,6 +309,7 @@ export default function PlayerModal({ video: initVideo, onClose }) {
   const [adData,       setAdData]      = useState(null);
   const [dlPending,    setDlPending]   = useState(false);
   const [sidebarAd,    setSidebarAd]   = useState(()=>SIDEBAR_ADS[0]);
+  const bufferingTimeout = useRef(null); // Add this near your other refs
 
   const { liked, count: likeCount, toggle: toggleLike } = useVideoLike(video.id, false, video.likes_count);
 
@@ -415,18 +416,46 @@ export default function PlayerModal({ video: initVideo, onClose }) {
   useEffect(()=>{
     const v=vRef.current; if(!v) return;
     setBuffered(0);setProg(0);setCurTime(0);setDur(0);
-    if (!adActive) setIsBuffering(true);
-    else { setIsBuffering(false); v.pause(); v.currentTime=0; }
+    if (!adActive && v.readyState < 3) {
+    setIsBuffering(true);
+  } else {
+    setIsBuffering(false);
+      v.pause(); v.currentTime=0;
+  }
+  
 
-    const tryPlay=()=>{
-      if (!vRef.current) return;
-      if (adActive) { vRef.current.pause(); vRef.current.currentTime=0; }
-      else { vRef.current.currentTime=0; vRef.current.play().then(()=>setPlaying(true)).catch(()=>{}); }
-    };
+   const tryPlay = () => {
+  if (!vRef.current) return;
+  if (adActive) { 
+    vRef.current.pause(); 
+    vRef.current.currentTime = 0; 
+  } else {
+    // Use a small delay or direct play
+    vRef.current.play()
+      .then(() => {
+        setPlaying(true);
+        setIsBuffering(false); // Force hide loader on success
+      })
+      .catch(() => {});
+  }
+};
+    
     if (v.readyState>=2) tryPlay(); else v.addEventListener("canplay",tryPlay,{once:true});
 
     const upd=()=>{ setCurTime(v.currentTime); setDur(v.duration||0); setProg(v.duration?(v.currentTime/v.duration)*100:0); };
-    const onWaiting=()=>{ if(!adActive) setIsBuffering(true); };
+    // Find these lines (approx. 429-430) and replace them:
+const onWaiting = () => { 
+  if (!adActive) {
+    // Wait 500ms before showing the loading spinner
+    clearTimeout(bufferingTimeout.current);
+    bufferingTimeout.current = setTimeout(() => setIsBuffering(true), 500);
+  }
+};
+
+const onPlaying = () => {
+  clearTimeout(bufferingTimeout.current);
+  setIsBuffering(false);
+};
     const onPlaying=()=>setIsBuffering(false);
     const onSeeking=()=>{ if(!adActive) setIsBuffering(true); };
     const onSeeked=()=>setIsBuffering(false);
@@ -669,6 +698,8 @@ export default function PlayerModal({ video: initVideo, onClose }) {
             }}
           >
             <video ref={vRef} src={video.video_url} playsInline
+              preload="auto"
+              autoPlay
               onTimeUpdate={()=>{ if(adActive&&vRef.current&&vRef.current.currentTime>0){vRef.current.currentTime=0;} }}
               onPlay={()=>{ if(adActive){vRef.current.pause();vRef.current.currentTime=0;}else setPlaying(true); }}
               onPause={()=>setPlaying(false)}
