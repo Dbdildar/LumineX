@@ -5,9 +5,8 @@ const CAPTION_LANGS = [
   { code: "off", label: "Off", flag: "🚫" },
   { code: "en", label: "English", flag: "🇬🇧" },
   { code: "hi", label: "Hindi", flag: "🇮🇳" },
-  { code: "es", label: "Spanish", flag: "🇪🇸" },
   { code: "fr", label: "French", flag: "🇫🇷" },
-  { code: "de", label: "German", flag: "🇩🇪" }
+
 ];
 
 // ── Pill button ───────────────────────────────────────────────────────────────
