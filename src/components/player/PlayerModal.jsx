@@ -300,7 +300,8 @@ export default function PlayerModal({ video: initVideo, onClose }) {
   const [dlPending,    setDlPending]   = useState(false);
   const [sidebarAd,    setSidebarAd]   = useState(()=>SIDEBAR_ADS[0]);
   const bufferingTimeout = useRef(null); // Add this near your other refs
-
+// Near your other useState hooks
+const [activeMenu, setActiveMenu] = useState(null); // 'speed', 'caption', or null
   const { liked, count: likeCount, toggle: toggleLike } = useVideoLike(video.id, false, video.likes_count);
 
   // Rotate sidebar ad
@@ -475,16 +476,25 @@ const onPlaying = () => {
   },[]);
 
   // ── Controls ─────────────────────────────────────────────────────────────────
-  const revealCtrl = useCallback(()=>{
-    setShowCtrl(true); clearTimeout(ctrlTimer.current);
-    ctrlTimer.current=setTimeout(()=>setShowCtrl(false),3500);
-  },[]);
+const revealCtrl = useCallback(() => {
+  setShowCtrl(true); 
+  clearTimeout(ctrlTimer.current);
+  
+  // Only start the hide timer if no menu is open
+  if (!activeMenu) {
+    ctrlTimer.current = setTimeout(() => setShowCtrl(false), 3500);
+  }
+}, [activeMenu]);
 
-  const togglePlay = useCallback(()=>{
-    const v=vRef.current; if(!v||adActive) return;
-    if (v.paused) { v.play().then(()=>setPlaying(true)).catch(()=>{}); revealCtrl(); }
-    else { v.pause(); setPlaying(false); setShowCtrl(true); clearTimeout(ctrlTimer.current); }
-  },[revealCtrl,adActive]);
+// Also add an effect to keep controls visible when a menu opens
+useEffect(() => {
+  if (activeMenu) {
+    setShowCtrl(true);
+    clearTimeout(ctrlTimer.current);
+  } else {
+    revealCtrl();
+  }
+}, [activeMenu, revealCtrl]);
 
   const seekBy = useCallback(secs=>{
     const v=vRef.current; if(!v||adActive) return;
