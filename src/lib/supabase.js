@@ -1,8 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import { AVATARS } from '../data/theme';
 
-const URL = process.env.REACT_APP_SUPABASE_URL || "https://your-project.supabase.co";
-const ANON = process.env.REACT_APP_SUPABASE_ANON || "your-anon-key";
+//const URL = process.env.REACT_APP_SUPABASE_URL || "https://your-project.supabase.co";
+//const ANON = process.env.REACT_APP_SUPABASE_ANON || "your-anon-key";
+
+// Vite uses import.meta.env instead of process.env
+const URL = import.meta.env.VITE_SUPABASE_URL;
+const ANON = import.meta.env.VITE_SUPABASE_ANON;
+
+if (!URL || !ANON) {
+  console.error("Supabase environment variables are missing!");
+}
 
 export const supabase = createClient(URL, ANON, {
   auth: { persistSession: true, autoRefreshToken: true },
