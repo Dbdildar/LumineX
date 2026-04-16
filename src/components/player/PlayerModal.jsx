@@ -621,11 +621,11 @@ const revealCtrl = useCallback(() => {
     onMenuToggle: (isOpen) => {
     setIsMenuOpen(isOpen);
     if (isOpen) {
-      clearTimeout(ctrlTimer.current); // Stop the timer immediately
+      clearTimeout(ctrlTimer.current); 
     } else {
-      revealCtrl(); // Restart the timer when menu closes
+      revealCtrl(); 
     }
-  }
+  },
     playing,muted,vol,prog,dur,curTime,speed,isFS,isMobile,
     showCtrl,vRef,captionLang,onCaptionChange:setCaptionLang,
     buffered,isBuffering,captionStatus:"off",
