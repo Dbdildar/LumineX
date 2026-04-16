@@ -182,6 +182,7 @@ function Seekbar({ prog, dur, buffered, onSeek }) {
   );
 }
 
+// ── Mobile Bottom Sheet ────────────────────────────────────────────────
 function MobileSheet({ open, onClose, title, children }) {
   if (!open) return null;
 
@@ -210,7 +211,7 @@ function MobileSheet({ open, onClose, title, children }) {
           borderRadius: "24px 24px 0 0",
           borderTop: `1px solid ${C.border}`,
           zIndex: 2000001,
-          maxHeight: "80vh", // Limits the sheet height
+          maxHeight: "80vh",
           display: "flex",
           flexDirection: "column",
           boxShadow: "0 -10px 40px rgba(0,0,0,1)",
@@ -244,13 +245,13 @@ function MobileSheet({ open, onClose, title, children }) {
           <button onClick={onClose} style={{ background: "rgba(255,255,255,.1)", border: "none", borderRadius: "50%", color: "white", width: 32, height: 32 }}>✕</button>
         </div>
 
-        {/* FIX: Use flex-basis to ensure the list takes up proper space and is scrollable */}
+        {/* FIX: Ensure display: block and clear overflow for top content visibility */}
         <div style={{ 
             overflowY: "auto", 
-            flex: "1 0 auto", 
+            flex: "1 1 auto", 
             WebkitOverflowScrolling: "touch", 
-            padding: "8px 0",
-            minHeight: "300px" // Forces the top half to show by giving the list a base height
+            padding: "8px 0 20px",
+            display: "block", // Critical for top items visibility
         }}>
           {children}
         </div>
@@ -258,6 +259,7 @@ function MobileSheet({ open, onClose, title, children }) {
     </>
   );
 }
+
 // ── Caption Picker ─────────────────────────────────────────────────────────────
 function CaptionPicker({ selectedLang, onSelect, videoEl, captionStatus, isMobile, onMenuToggle }) {
   const [open, setOpen] = useState(false);
@@ -507,13 +509,12 @@ export default function ControlsBar({
         background: "linear-gradient(transparent,rgba(0,0,0,.92))",
         padding: isFS ? "60px 20px 22px" : isMobile ? "38px 12px 14px" : "52px 18px 16px",
         opacity: showCtrl ? 1 : 0,
-        // Ensure that even if showCtrl is false, the portal content (sheets) can still be clicked
-        transform: showCtrl ? "translateY(0)" : "translateY(8px)",
+        // FIX: Remove transform translateY on mobile so fixed sheet isn't clipped
+        transform: (showCtrl || isMobile) ? "translateY(0)" : "translateY(8px)",
         transition: "opacity .3s ease, transform .3s ease",
-        // Note: pointerEvents is "auto" because we handle sub-menu visibility separately
         pointerEvents: "auto", 
         zIndex: 10000,
-        overflow: "visible",
+        overflow: "visible", // Critical for sheet visibility
       }}
     >
       <Seekbar prog={prog} dur={dur} buffered={buffered || 0} onSeek={handleSeek} />
@@ -522,7 +523,7 @@ export default function ControlsBar({
         display: "flex",
         alignItems: "center",
         gap: isMobile ? 4 : 8,
-        opacity: showCtrl ? 1 : 0, // Visual hiding of internal buttons
+        opacity: showCtrl ? 1 : 0, 
         transition: "opacity .2s ease",
         ...(isMobile ? {
           overflowX: "auto",
