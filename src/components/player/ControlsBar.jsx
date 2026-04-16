@@ -105,6 +105,7 @@ function CaptionPicker({ selectedLang, onSelect, videoEl, captionStatus, isMobil
     borderRadius:"20px 20px 0 0",
     border:`1px solid ${C.border}`,
     zIndex:9999,
+    minHeight:"250px",
     maxHeight:"60vh",
     boxShadow:"0 -8px 32px rgba(0,0,0,.8)",
     animation:"fadeUp .2s ease",
@@ -202,7 +203,7 @@ function SpeedMenu({ speed, setSpeedTo, isMobile }) {
   const dropStyle = isMobile ? {
     position:"fixed",bottom:0,left:0,right:0,
     background:C.bg2,borderRadius:"20px 20px 0 0",
-    border:`1px solid ${C.border}`,zIndex:9999,
+    border:`1px solid ${C.border}`,zIndex:10001,minHeight:"300px",
     maxHeight:"50vh",boxShadow:"0 -8px 32px rgba(0,0,0,.8)",overflowY: "auto",
     animation:"fadeUp .2s ease",overflow:"hidden",display:"flex",flexDirection:"column",WebkitOverflowScrolling: "touch",
   } : {
@@ -277,6 +278,8 @@ export default function ControlsBar({
       transform:showCtrl?"translateY(0)":"translateY(8px)",
       transition:"opacity .3s ease, transform .3s ease",
       pointerEvents:showCtrl?"auto":"none",zIndex:30,
+      zIndex: 10000,
+    overflow: "visible"
     }}>
 
       {/* Seekbar */}
