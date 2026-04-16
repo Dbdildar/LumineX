@@ -692,7 +692,7 @@ export default function PlayerModal({ video: initVideo, onClose }) {
             {/* Mobile tap hint overlay (shows briefly when controls appear) */}
             {isMobile&&showCtrl&&!adActive&&playing&&(
               <div style={{ position:"absolute",inset:0,display:"flex",alignItems:"stretch",pointerEvents:"none",zIndex:5 }}>
-                {[{side:"left",icon:"",hint:"← 10s"},{side:"center",icon:playing?"⏸":"▶",hint:""},{side:"right",icon:"",hint:"10s →"}].map((z,i)=>(
+                {[{side:"center",icon:playing?"⏸":"▶",hint:""}].map((z,i)=>(
                   <div key={i} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4 }}>
                     {i!==1&&<div style={{ background:"rgba(0,0,0,.28)",borderRadius:40,width:44,height:44,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",border:"1px solid rgba(255,255,255,.12)" }}>
                       <span style={{fontSize:16}}>{z.icon}</span>
