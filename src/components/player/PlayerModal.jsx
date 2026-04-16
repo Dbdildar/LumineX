@@ -301,7 +301,6 @@ export default function PlayerModal({ video: initVideo, onClose }) {
   const [sidebarAd,    setSidebarAd]   = useState(()=>SIDEBAR_ADS[0]);
   const bufferingTimeout = useRef(null); // Add this near your other refs
 // Near your other useState hooks
-const [activeMenu, setActiveMenu] = useState(null); // 'speed', 'caption', or null
   const { liked, count: likeCount, toggle: toggleLike } = useVideoLike(video.id, false, video.likes_count);
 
   // Rotate sidebar ad
