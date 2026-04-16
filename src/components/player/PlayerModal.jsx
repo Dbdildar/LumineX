@@ -692,7 +692,7 @@ export default function PlayerModal({ video: initVideo, onClose }) {
             {/* Mobile tap hint overlay (shows briefly when controls appear) */}
             {isMobile&&showCtrl&&!adActive&&playing&&(
               <div style={{ position:"absolute",inset:0,display:"flex",alignItems:"stretch",pointerEvents:"none",zIndex:5 }}>
-                {[{side:"left",icon:"⏪",hint:"← 10s"},{side:"center",icon:playing?"⏸":"▶",hint:""},{side:"right",icon:"⏩",hint:"10s →"}].map((z,i)=>(
+                {[{side:"left",icon:"",hint:"← 10s"},{side:"center",icon:playing?"⏸":"▶",hint:""},{side:"right",icon:"",hint:"10s →"}].map((z,i)=>(
                   <div key={i} style={{ flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4 }}>
                     {i!==1&&<div style={{ background:"rgba(0,0,0,.28)",borderRadius:40,width:44,height:44,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",border:"1px solid rgba(255,255,255,.12)" }}>
                       <span style={{fontSize:16}}>{z.icon}</span>
@@ -703,12 +703,6 @@ export default function PlayerModal({ video: initVideo, onClose }) {
               </div>
             )}
 
-            {/* 3× speed badge */}
-            {is3x&&(
-              <div style={{ position:"absolute",top:14,right:14,zIndex:25,background:`linear-gradient(135deg,${C.accent},${C.accent2})`,color:"white",fontWeight:900,fontSize:13,padding:"5px 14px",borderRadius:10,letterSpacing:1,boxShadow:`0 0 20px ${C.accent}66`,animation:"scaleIn .15s ease" }}>
-                ⚡ 3× SPEED
-              </div>
-            )}
 
             <SeekFlash seekFlash={seekFlash} arcProg={arcProg}/>
             {autoCountdown!==null&&<AutoPlayCountdown seconds={autoCountdown} onPlay={playNext} onCancel={cancelAuto}/>}
