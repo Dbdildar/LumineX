@@ -1,426 +1,329 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { C, Avatar, VipBadge, VerifiedBadge, fmtNum, timeAgo } from "./ui/index";
 import { useApp } from "../context/AppContext";
 import { useIsMobile, useVideoLike } from "../hooks/index";
-import { likeAPI,videoAPI } from "../lib/supabase";
 
-export default function VideoCard({ video, cardWidth, compact, showViews, showChannel = true, isOwner }) {
-  const { setTab, playVideo, setActiveProfile } = useApp();
+// ── Stylish long-press / loading ring ─────────────────────────────────────────
+function LongPressRing({ progress, show }) {
+  if (!show) return null;
+  const R = 36, CIRC = 2 * Math.PI * R;
+  const dash = (progress / 100) * CIRC;
+  return (
+    <div style={{
+      position:"absolute",inset:0,zIndex:12,
+      display:"flex",alignItems:"center",justifyContent:"center",
+      background:"rgba(0,0,0,.55)",backdropFilter:"blur(4px)",
+    }}>
+      <div style={{ position:"relative",width:90,height:90,display:"flex",alignItems:"center",justifyContent:"center" }}>
+        {/* Outer glow ring */}
+        <div style={{
+          position:"absolute",inset:0,borderRadius:"50%",
+          background:`radial-gradient(circle, ${C.accent}18 0%, transparent 70%)`,
+          animation:"pulseRing 1.2s ease-in-out infinite",
+        }}/>
+        {/* SVG arc */}
+        <svg width={90} height={90} style={{position:"absolute",inset:0,transform:"rotate(-90deg)"}}>
+          {/* Track */}
+          <circle cx={45} cy={45} r={R} fill="none" stroke="rgba(255,255,255,.12)" strokeWidth={4}/>
+          {/* Progress arc */}
+          <circle cx={45} cy={45} r={R} fill="none"
+            stroke="url(#lpGrad)" strokeWidth={4} strokeLinecap="round"
+            strokeDasharray={`${dash} ${CIRC}`}
+            style={{transition:"stroke-dasharray .05s linear"}}/>
+          <defs>
+            <linearGradient id="lpGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="var(--accent)"/>
+              <stop offset="100%" stopColor="var(--accent3,#f472b6)"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        {/* Center icon */}
+        <div style={{
+          width:40,height:40,borderRadius:"50%",
+          background:`linear-gradient(135deg,${C.accent},${C.accent2||"#818cf8"})`,
+          display:"flex",alignItems:"center",justifyContent:"center",
+          fontSize:18,color:"white",zIndex:1,
+          boxShadow:`0 0 20px ${C.accent}88`,
+        }}>▶</div>
+      </div>
+      {/* Hint text */}
+      <div style={{
+        position:"absolute",bottom:10,left:0,right:0,textAlign:"center",
+        fontSize:10,fontWeight:700,color:"rgba(255,255,255,.6)",letterSpacing:.5,
+      }}>Hold to preview</div>
+    </div>
+  );
+}
+
+// ── Buffering overlay for card preview ───────────────────────────────────────
+function CardBuffering({ show }) {
+  if (!show) return null;
+  return (
+    <div style={{
+      position:"absolute",inset:0,zIndex:11,pointerEvents:"none",
+      display:"flex",alignItems:"center",justifyContent:"center",
+    }}>
+      <style>{`@keyframes cvSpin{to{stroke-dashoffset:-251}}`}</style>
+      <svg width={44} height={44} style={{filter:`drop-shadow(0 0 8px ${C.accent})`}}>
+        <circle cx={22} cy={22} r={18} fill="none" stroke="rgba(255,255,255,.1)" strokeWidth={3}/>
+        <circle cx={22} cy={22} r={18} fill="none" stroke="var(--accent)" strokeWidth={3}
+          strokeLinecap="round" strokeDasharray="30 113"
+          style={{animation:"cvSpin .9s linear infinite",transformOrigin:"22px 22px"}}/>
+      </svg>
+    </div>
+  );
+}
+
+export default function VideoCard({ video, cardWidth, compact, showChannel=true }) {
+  const { playVideo } = useApp();
   const isMobile = useIsMobile();
-  const vRef = useRef(null);
-  const timerRef = useRef(null);
-  const lpRef = useRef(null);
-  const tickRef = useRef(null);
+  const vRef        = useRef(null);
+  const timerRef    = useRef(null);   // hover delay (desktop)
+  const lpTimerRef  = useRef(null);   // long-press timer (mobile)
+  const tickRef     = useRef(null);   // progress tick
+  const startTRef   = useRef(null);   // touch start time
 
-  const [active, setActive] = useState(false);
-  const [hov, setHov] = useState(false);
-  const [prog, setProg] = useState(0);
-  const [lpProg, setLpProg] = useState(0);
-  const [lpOn, setLpOn] = useState(false);
-
-
+  const [active,   setActive]   = useState(false);   // video playing
+  const [hov,      setHov]      = useState(false);   // hover/lp active
+  const [vidProg,  setVidProg]  = useState(0);       // 0-100 playback progress
+  const [lpProg,   setLpProg]   = useState(0);       // 0-100 long-press ring
+  const [lpOn,     setLpOn]     = useState(false);   // long-press ring visible
+  const [buffering,setBuffering]= useState(false);   // video buffering
 
   const { liked, count: likeCount, toggle: toggleLike } = useVideoLike(video.id, false, video.likes_count);
 
-  // 1. Add these new states at the top of your component
-  const [showMenu, setShowMenu] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // ── Play preview ───────────────────────────────────────────────────────────
+  const startPreview = useCallback(()=>{
+    const v=vRef.current; if(!v) return;
+    setBuffering(true);
+    v.muted=true; v.volume=0; v.currentTime=0;
+    v.play()
+      .then(()=>{ setActive(true); setBuffering(false); })
+      .catch(()=>{ setBuffering(false); });
+  },[]);
 
-  const handleDelete = async (e) => {
-    e.stopPropagation();
-    if (!session?.user?.id) {
-      return showToast("Please login to perform this action", "error");
-    }
+  const stopPreview = useCallback(()=>{
+    const v=vRef.current; if(!v) return;
+    v.pause(); v.currentTime=0;
+    setActive(false); setVidProg(0); setBuffering(false);
+  },[]);
 
-    // Ensure the person deleting is the actual owner (Security check)
-    if (video.user_id !== session.user.id) {
-      return showToast("Unauthorized: You do not own this video", "error");
-    }
-    // Prevent multiple clicks
-    if (isDeleting) return;
+  // ── Desktop hover ─────────────────────────────────────────────────────────
+  const onEnter = useCallback(()=>{
+    if (isMobile) return;
+    setHov(true);
+    timerRef.current = setTimeout(startPreview, 400);
+  },[isMobile,startPreview]);
 
-    setIsDeleting(true);
-    try {
-      // Actual API Call
-      await videoAPI.delete(video.id);
-      // Success feedback
-      showToast("Video deleted permanently", "success");
-      // UI Update: Broadcast to ProfilePage to remove the card from the grid
-      window.dispatchEvent(new CustomEvent('video_deleted', {
-        detail: { videoId: video.id }
-      }));
+  const onLeave = useCallback(()=>{
+    if (isMobile) return;
+    clearTimeout(timerRef.current);
+    setHov(false); stopPreview();
+  },[isMobile,stopPreview]);
 
-      // Close menus
-      setShowMenu(false);
-      setConfirmDelete(false);
-    } catch (err) {
-      console.error("Delete error:", err);
-      showToast(err.message || "Failed to delete video", "error");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-
-  // Inside VideoCard.jsx
-  const { session, showToast } = useApp();
-  const [saved, setSaved] = useState(false);
-
-  // Add an effect to check if the video is already saved when the card loads
-  useEffect(() => {
-    if (session?.user?.id) {
-      likeAPI.isSaved(session.user.id, video.id).then(setSaved);
-    }
-  }, [video.id, session?.user?.id]);
-
-  const handleSaveToggle = async (e) => {
-    e.stopPropagation();
-    if (!session) return showToast("Please login to save videos", "info");
-
-    try {
-      const nextSavedState = !saved; // What the state will become
-      await likeAPI.toggleSave(session.user.id, video.id, saved);
-
-      // 1. Update local state
-      setSaved(nextSavedState);
-
-      // 2. ─── BROADCAST THE UPDATE ───
-      window.dispatchEvent(new CustomEvent('video_save_updated', {
-        detail: { videoId: video.id, isSaved: nextSavedState }
-      }));
-
-      showToast(nextSavedState ? "Video saved!" : "Removed from saved", "success");
-    } catch (err) {
-      showToast("Failed to update saved videos", "error");
-    }
-  };
-
-
-  // Add this inside your VideoCard component
-  useEffect(() => {
-    const handleGlobalSaveUpdate = (e) => {
-      if (e.detail.videoId === video.id) {
-        setSaved(e.detail.isSaved);
-      }
-    };
-
-    window.addEventListener('video_save_updated', handleGlobalSaveUpdate);
-    return () => window.removeEventListener('video_save_updated', handleGlobalSaveUpdate);
-  }, [video.id]);
-
-
-  function play() {
-    const v = vRef.current; if (!v) return;
-    v.muted = true; v.volume = 0; v.currentTime = 0;
-    v.play().then(() => setActive(true)).catch(() => { });
-  }
-  function stop() {
-    const v = vRef.current; if (!v) return;
-    v.pause(); v.currentTime = 0; setActive(false); setProg(0);
-  }
-
-  function onEnter() { if (isMobile) return; setHov(true); timerRef.current = setTimeout(play, 350); }
-  function onLeave() { if (isMobile) return; clearTimeout(timerRef.current); setHov(false); stop(); }
-
-  // Mobile: long-press = play preview in card, single tap = open PlayerModal
-  const touchStartTime = useRef(0);
-  const longPressTriggered = useRef(false);
-
-  function onTouchStart(e) {
+  // ── Mobile touch ──────────────────────────────────────────────────────────
+  const onTouchStart = useCallback(e=>{
     if (!isMobile) return;
     e.preventDefault();
-    touchStartTime.current = Date.now();
-    longPressTriggered.current = false;
+    startTRef.current = Date.now();
     setLpOn(true); setLpProg(0);
+
+    // Progress ring animation
     const t0 = Date.now();
-    tickRef.current = setInterval(() => setLpProg(Math.min((Date.now() - t0) / 6, 100)), 16);
-    lpRef.current = setTimeout(() => {
-      longPressTriggered.current = true;
-      clearInterval(tickRef.current); setLpOn(false); setHov(true); play();
-    }, 600);
-  }
-  function onTouchEnd() {
+    tickRef.current = setInterval(()=>{
+      const pct = Math.min(((Date.now()-t0)/700)*100, 100);
+      setLpProg(pct);
+    },16);
+
+    // After 700ms fire preview
+    lpTimerRef.current = setTimeout(()=>{
+      clearInterval(tickRef.current);
+      setLpOn(false); setHov(true);
+      startPreview();
+    },700);
+  },[isMobile,startPreview]);
+
+  const onTouchEnd = useCallback(e=>{
     if (!isMobile) return;
-    clearTimeout(lpRef.current); clearInterval(tickRef.current);
+    clearTimeout(lpTimerRef.current);
+    clearInterval(tickRef.current);
+    const held = Date.now() - (startTRef.current||0);
     setLpOn(false); setLpProg(0);
-    // If long press was triggered, just stop preview — don't open player
-    if (longPressTriggered.current) {
-      // Keep preview playing, user can tap again to open
-      return;
+
+    if (active) {
+      // Was previewing — stop and open player
+      stopPreview(); setHov(false);
+      playVideo(video);
+    } else if (held < 600) {
+      // Short tap — open player directly
+      setHov(false); stopPreview();
+      playVideo(video);
+    } else {
+      // Held but video didn't start — still open
+      stopPreview(); setHov(false);
+      playVideo(video);
     }
-    if (!active) setHov(false);
-  }
+  },[isMobile,active,stopPreview,playVideo,video]);
 
-  useEffect(() => {
-    const v = vRef.current; if (!v) return;
-    const fn = () => v.duration && setProg((v.currentTime / v.duration) * 100);
-    v.addEventListener("timeupdate", fn);
-    return () => v.removeEventListener("timeupdate", fn);
-  }, []);
+  const onTouchMove = useCallback(()=>{
+    // Cancel long-press on move/scroll
+    clearTimeout(lpTimerRef.current);
+    clearInterval(tickRef.current);
+    setLpOn(false); setLpProg(0);
+    if (!active) { setHov(false); stopPreview(); }
+  },[active,stopPreview]);
 
-  useEffect(() => () => { clearTimeout(timerRef.current); clearTimeout(lpRef.current); clearInterval(tickRef.current); }, []);
+  // ── Track playback progress ──────────────────────────────────────────────
+  useEffect(()=>{
+    const v=vRef.current; if(!v) return;
+    const fn=()=>v.duration&&setVidProg((v.currentTime/v.duration)*100);
+    v.addEventListener("timeupdate",fn);
+    return()=>v.removeEventListener("timeupdate",fn);
+  },[]);
 
-  const pf = video.profiles || { username: video.channel || "Unknown" };
+  // ── Cleanup ───────────────────────────────────────────────────────────────
+  useEffect(()=>()=>{
+    clearTimeout(timerRef.current); clearTimeout(lpTimerRef.current); clearInterval(tickRef.current);
+  },[]);
 
-
-  const handleProfileClick = (e) => {
-    e.stopPropagation();
-    window.scrollTo(0, 0);
-    setActiveProfile(pf); // 'pf' is the user data from the card
-    setTab(`profile:${pf.username}`);
-  };
-
-
-  // ... after other hooks like useVideoLike ...
-  const [currentViews, setCurrentViews] = useState(video.views || video.views || 0);
-
- useEffect(() => {
-  const handleUpdate = (e) => {
-    if (e.detail.videoId === video.id) {
-      setCurrentViews(e.detail.views);
-    }
-  };
-  window.addEventListener('video_view_updated', handleUpdate);
-  return () => window.removeEventListener('video_view_updated', handleUpdate);
-}, [video.id]);
+  const pf = video.profiles||{ username:video.channel||"Unknown" };
+  const isHovering = hov || active;
 
   return (
-    <div onClick={() => { if (isMobile && longPressTriggered.current) { longPressTriggered.current = false; stop(); setHov(false); return; } if (!lpOn) playVideo(video); }} onMouseEnter={onEnter} onMouseLeave={onLeave}
-      onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onTouchMove={onTouchEnd}
+    <div
+      onClick={!isMobile ? ()=>playVideo(video) : undefined}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onTouchMove={onTouchMove}
       style={{
-        background: hov ? C.cardH : C.card, borderRadius: 14, overflow: "hidden", cursor: "pointer",
-        border: `1px solid ${hov ? "var(--accent)44" : C.border}`,
-        transform: hov ? "translateY(-5px) scale(1.015)" : "none",
-        transition: "all .3s ease",
-        boxShadow: hov ? `0 20px 50px rgba(0,0,0,.5),0 0 40px var(--accent)12` : `0 2px 12px rgba(0,0,0,.2)`,
-        width: cardWidth || "100%", flexShrink: cardWidth ? 0 : undefined,
-        scrollSnapAlign: cardWidth ? "start" : undefined, position: "relative",
-        /* ADD THIS LINE TO FIX BLINKING */
-        WebkitTapHighlightColor: "transparent",
-        touchAction: "manipulation"
-      }}>
+        background:isHovering?C.cardH:C.card,
+        borderRadius:14, overflow:"hidden", cursor:"pointer",
+        border:`1px solid ${isHovering?"var(--accent)44":C.border}`,
+        transform:isHovering?"translateY(-5px) scale(1.015)":"none",
+        transition:"all .3s cubic-bezier(0.34,1.2,0.64,1)",
+        boxShadow:isHovering?`0 20px 50px rgba(0,0,0,.5),0 0 40px var(--accent)12`:"0 2px 12px rgba(0,0,0,.2)",
+        width:cardWidth||"100%",
+        flexShrink:cardWidth?0:undefined,
+        scrollSnapAlign:cardWidth?"start":undefined,
+        position:"relative",
+        WebkitTapHighlightColor:"transparent",
+        userSelect:"none",
+      }}
+    >
+      {/* ── Thumbnail + video layer ── */}
+      <div style={{ position:"relative",aspectRatio:"16/9",overflow:"hidden",background:"#111" }}>
 
-      {/* Media */}
-      <div style={{ position: "relative", aspectRatio: "16/9", overflow: "hidden", background: "#111" }}>
-        {!active && (
-          <img src={video.thumbnail_url || `https://picsum.photos/640/360?random=${String(video.id).charCodeAt(0) || 1}`} alt={video.title} loading="lazy"
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transform: hov ? "scale(1.06)" : "scale(1)", transition: "transform .5s ease", zIndex: 1 }} />
-        )}
+        {/* Thumbnail — always mounted, fades out when active */}
+        <img
+          src={video.thumbnail_url||`https://picsum.photos/640/360?random=${String(video.id).charCodeAt(0)||1}`}
+          alt={video.title} loading="lazy"
+          style={{
+            position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",
+            transform:isHovering?"scale(1.07)":"scale(1)",
+            transition:"transform .5s ease, opacity .4s ease",
+            opacity:active?0:1, zIndex:1,
+          }}
+        />
 
-
-        {hov && (
+        {/* Video preview element (mounted when hovering) */}
+        {(hov||active||isHovering)&&(
           <video ref={vRef} src={video.video_url} muted playsInline loop
-            onCanPlay={e => { e.target.muted = true; e.target.volume = 0; e.target.play().then(() => setActive(true)).catch(() => { }); }}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 2, opacity: active ? 1 : 0, transition: "opacity .4s" }} />
+            onCanPlay={e=>{
+              e.target.muted=true; e.target.volume=0;
+              e.target.play().then(()=>{setActive(true);setBuffering(false);}).catch(()=>setBuffering(false));
+            }}
+            onWaiting={()=>setBuffering(true)}
+            onPlaying={()=>setBuffering(false)}
+            style={{
+              position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",
+              zIndex:2,opacity:active?1:0,transition:"opacity .4s ease",
+            }}
+          />
         )}
 
-        <div style={{ position: "absolute", inset: 0, zIndex: 3, pointerEvents: "none", background: "linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 50%)", opacity: hov ? 1 : 0, transition: "opacity .3s" }} />
+        {/* Gradient overlay on hover */}
+        <div style={{
+          position:"absolute",inset:0,zIndex:3,pointerEvents:"none",
+          background:"linear-gradient(to top,rgba(0,0,0,.72) 0%,transparent 55%)",
+          opacity:isHovering?1:0,transition:"opacity .3s",
+        }}/>
 
-        {hov && !active && (
-          <div style={{ position: "absolute", inset: 0, zIndex: 4, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--accent)cc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "white", boxShadow: "0 0 0 8px var(--accent)33", animation: "pulseRing 1.5s infinite" }}>▶</div>
+        {/* Desktop: play icon before video starts */}
+        {!isMobile&&hov&&!active&&!buffering&&(
+          <div style={{ position:"absolute",inset:0,zIndex:4,pointerEvents:"none",display:"flex",alignItems:"center",justifyContent:"center" }}>
+            <div style={{
+              width:52,height:52,borderRadius:"50%",
+              background:`${C.accent}cc`,display:"flex",alignItems:"center",justifyContent:"center",
+              fontSize:20,color:"white",
+              boxShadow:`0 0 0 10px ${C.accent}28`,animation:"pulseRing 1.4s infinite",
+            }}>▶</div>
           </div>
         )}
 
-        {isMobile && lpOn && (
-          <div style={{ position: "absolute", inset: 0, zIndex: 10, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width={76} height={76} style={{ transform: "rotate(-90deg)" }}>
-              <circle cx={38} cy={38} r={32} fill="none" stroke="rgba(255,255,255,.2)" strokeWidth={4} />
-              <circle cx={38} cy={38} r={32} fill="none" stroke="var(--accent)" strokeWidth={4} strokeLinecap="round" strokeDasharray={`${lpProg * 2.01} 201`} />
-            </svg>
-            <span style={{ position: "absolute", fontSize: 24 }}>▶</span>
+        {/* Mobile: long-press progress ring */}
+        <LongPressRing progress={lpProg} show={lpOn}/>
+
+        {/* Buffering spinner (card preview) */}
+        <CardBuffering show={buffering&&isHovering}/>
+
+        {/* Mobile: stop button when preview active */}
+        {isMobile&&active&&(
+          <button onClick={e=>{e.stopPropagation();stopPreview();setHov(false);}} style={{
+            position:"absolute",top:8,right:8,zIndex:14,
+            background:"rgba(0,0,0,.8)",border:"none",borderRadius:"50%",
+            width:30,height:30,color:"white",fontSize:13,cursor:"pointer",
+            display:"flex",alignItems:"center",justifyContent:"center",
+          }}>⏹</button>
+        )}
+
+        {/* VIP badge */}
+        {video.is_vip&&(
+          <div style={{ position:"absolute",top:8,left:8,zIndex:5 }}><VipBadge small/></div>
+        )}
+
+        {/* Duration */}
+        {video.duration&&(
+          <div style={{ position:"absolute",bottom:active?12:8,right:8,zIndex:5,background:"rgba(0,0,0,.85)",color:"white",fontSize:11,fontWeight:700,padding:"2px 6px",borderRadius:4,transition:"bottom .2s" }}>
+            {video.duration}
           </div>
         )}
 
-        {isMobile && active && (
-          <button onClick={e => { e.stopPropagation(); stop(); setHov(false); }} style={{ position: "absolute", top: 8, right: 8, zIndex: 12, background: "rgba(0,0,0,.8)", border: "none", borderRadius: "50%", width: 32, height: 32, color: "white", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>⏹</button>
+        {/* Like button (desktop hover) */}
+        {!compact&&!isMobile&&(
+          <button onClick={e=>{e.stopPropagation();toggleLike();}} style={{
+            position:"absolute",top:8,right:8,zIndex:5,
+            background:"rgba(0,0,0,.72)",border:"none",borderRadius:"50%",
+            width:32,height:32,cursor:"pointer",fontSize:15,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            opacity:isHovering||liked?1:0,transition:"opacity .2s, transform .2s",
+            transform:liked?"scale(1.2)":"scale(1)",
+          }}>{liked?"❤️":"🤍"}</button>
         )}
 
-        <div style={{ position: "absolute", top: 8, left: 8, display: "flex", gap: 4, zIndex: 5 }}>
-          {video.is_vip && <VipBadge small />}
+        {/* Playback progress bar */}
+        <div style={{ position:"absolute",bottom:0,left:0,right:0,height:3,background:"rgba(255,255,255,.1)",zIndex:6,opacity:active?1:0,transition:"opacity .3s" }}>
+          <div style={{ height:"100%",background:`linear-gradient(90deg,${C.accent},${C.accent2||"#818cf8"})`,width:`${vidProg}%`,transition:"width .1s linear" }}/>
         </div>
-
-        <div style={{ position: "absolute", bottom: 8, right: 8, zIndex: 5, background: "rgba(0,0,0,.85)", color: "white", fontSize: 11, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>{video.duration || ""}</div>
-
-        {/* Inside VideoCard.jsx - Top Right Button Section */}
-        {!compact && (
-          <div style={{ position: "absolute", top: 8, right: 8, zIndex: 15 }}>
-            <button
-              onClick={e => {
-                e.stopPropagation();
-                e.preventDefault();
-                if (isOwner) {
-                  setShowMenu(!showMenu);
-                  setConfirmDelete(false);
-                } else {
-                  handleSaveToggle(e);
-                }
-              }}
-              style={{
-                background: "rgba(0,0,0,0.7)",
-                border: "none",
-                borderRadius: "50%",
-                width: 30,
-                height: 30,
-                cursor: "pointer",
-                fontSize: 14,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: hov || saved || isOwner ? 1 : 0,
-                transition: "opacity .2s, transform .2s",
-                color: (isOwner ? "white" : (saved ? C.accent : "white"))
-              }}
-            >
-              {isOwner ? (
-                <span style={{ fontSize: 20, fontWeight: '900' }}>⋮</span>
-              ) : (
-                saved ? "🔖" : "📑"
-              )}
-            </button>
-
-            {isOwner && showMenu && (
-              <div
-                onClick={e => e.stopPropagation()}
-                style={{
-                  position: "absolute",
-                  top: 35,
-                  right: 0,
-                  background: "#1a1a1a",
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 8,
-                  padding: 8,
-                  minWidth: 120,
-                  boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4,
-                  zIndex: 20
-                }}
-              >
-                {!confirmDelete ? (
-                  <button
-                    onClick={() => setConfirmDelete(true)}
-                    style={{ background: "none", border: "none", color: "#ff4d4d", padding: "2px", cursor: "pointer", textAlign: "left", fontWeight: 600, fontSize: 13 }}
-                  >
-                    🗑️ Delete
-                  </button>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 4 }}>
-                    <span style={{ fontSize: 11, color: "#aaa", textAlign: "center" }}>Confirm Delete?</span>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button
-                        onClick={handleDelete}
-                        disabled={isDeleting}
-                        style={{
-                          flex: 1, background: isDeleting ? "#444" : "#ff4d4d", border: "none", color: "white", padding: "4px 8px", borderRadius: 4, cursor: isDeleting ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 700, display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 5
-                        }}
-                      >
-                        {isDeleting ? (
-                          <>
-                            {/* Simple inline CSS loader */}
-                            <div style={{
-                              width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)",
-                              borderTopColor: "#fff", borderRadius: "50%",
-                              animation: "spin 0.8s linear infinite"
-                            }} />
-                            Deleting...
-                          </>
-                        ) : (
-                          "Sure."
-                        )}
-                      </button>
-                      <button
-                        onClick={() => !isDeleting && setConfirmDelete(false)}
-                        disabled={isDeleting}
-                        style={{
-                          flex: 1,
-                          background: "#333",
-                          border: "none",
-                          color: "#ccc",
-                          padding: "6px 10px",
-                          borderRadius: 6,
-                          cursor: isDeleting ? "not-allowed" : "pointer",
-                          fontSize: 11
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                    <style>{`
-  @keyframes spin { to { transform: rotate(360deg); } }
-`}</style>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )} {/* This closing parenthesis and brace were missing */}
-
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: "rgba(255,255,255,.1)", zIndex: 6, opacity: active ? 1 : 0 }}>
-          <div style={{ height: "100%", background: `linear-gradient(90deg,${C.accent},${C.accent2})`, width: `${prog}%`, transition: "width .12s linear" }} />
-        </div>
-
-        {/* ─── Updated Condition to check for showViews AND isMobile ─── */}
-        {showViews && isMobile && (
-          <div style={{
-            position: 'absolute',
-            top: compact ? 4 : 8,
-            right: compact ? 4 : 42,
-            background: 'rgba(0, 0, 0, 0.7)',
-            backdropFilter: 'blur(8px)',
-            padding: '3px 8px',
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            zIndex: 10,
-            border: '1px solid rgba(255,255,255,0.1)',
-            pointerEvents: 'none'
-          }}>
-
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>
-              {fmtNum(currentViews)}
-            </span>
-          </div>
-        )}
-
       </div>
 
-      {!compact && showChannel && (
-        <div style={{ padding: "10px 12px 12px" }}>
-          <div onClick={handleProfileClick} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
-
-            <Avatar profile={pf} size={32} />
-
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: C.text, lineHeight: 1.4, marginBottom: 3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{video.title}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.muted }}>
-                <div
-                  onClick={handleProfileClick}
-                  className="user-link"
-                  style={{
-                    color: C.accent,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "color 0.2s ease",
-                    padding: isMobile ? "4px 0" : "0",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px"
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.color = C.accent2}
-                  onMouseLeave={(e) => e.currentTarget.style.color = C.accent}
-                >
-                  {pf.display_name || pf.username}
-                  {pf.is_verified && <VerifiedBadge size={11} />}
-                </div>
+      {/* ── Card body ── */}
+      {!compact&&showChannel&&(
+        <div style={{ padding:"10px 12px 12px" }}>
+          <div style={{ display:"flex",gap:9,alignItems:"flex-start" }}>
+            <Avatar profile={pf} size={32}/>
+            <div style={{ flex:1,minWidth:0 }}>
+              <div style={{ fontSize:13,fontWeight:600,color:C.text,lineHeight:1.4,marginBottom:3,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden" }}>
+                {video.title}
               </div>
-              <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{fmtNum(currentViews)} views · {timeAgo(video.created_at)}</div>
+              <div style={{ display:"flex",alignItems:"center",gap:4,fontSize:11,color:C.muted }}>
+                <span style={{ color:C.accent,fontWeight:600 }}>{pf.display_name||pf.username}</span>
+                {pf.is_verified&&<VerifiedBadge size={11}/>}
+              </div>
+              <div style={{ fontSize:10,color:C.muted,marginTop:2 }}>
+                {fmtNum(video.views||0)} views · {timeAgo(video.created_at)}
+              </div>
             </div>
           </div>
         </div>
