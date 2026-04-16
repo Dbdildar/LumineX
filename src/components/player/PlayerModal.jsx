@@ -774,7 +774,51 @@ const controlProps = {
                 ⊡ Exit
               </button>
             )}
-
+{/* --- CENTER MENU OVERLAY --- */}
+{activeMenu && (
+  <div 
+    onClick={() => setActiveMenu(null)} 
+    style={{
+      position: "absolute", inset: 0, zIndex: 100,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      background: "rgba(0,0,0,0.6)", backdropFilter: "blur(5px)",
+    }}
+  >
+    <div 
+      onClick={e => e.stopPropagation()} 
+      style={{
+        background: C.bg, borderRadius: 20, padding: 20, minWidth: 220,
+        border: `1px solid ${C.border}`, boxShadow: "0 25px 50px rgba(0,0,0,0.5)"
+      }}
+    >
+      <div style={{ fontWeight: 800, marginBottom: 15, textAlign: "center", color: C.text }}>
+        {activeMenu === 'speed' ? 'Playback Speed' : 'Captions'}
+      </div>
+      
+      {(activeMenu === 'speed' ? [0.5, 1, 1.5, 2] : ['off', 'en', 'es']).map(opt => (
+        <button 
+          key={opt}
+          onClick={() => {
+            if(activeMenu === 'speed') {
+                const v = vRef.current;
+                if (v) v.playbackRate = opt;
+                setSpeed(opt);
+            } else setCaptionLang(opt);
+            setActiveMenu(null);
+          }}
+          style={{ 
+            width: "100%", padding: "12px", marginBottom: 5, borderRadius: 10,
+            border: "none", background: (speed === opt || captionLang === opt) ? C.accent : C.bg3,
+            color: (speed === opt || captionLang === opt) ? "white" : C.text,
+            cursor: "pointer", fontWeight: 600
+          }}
+        >
+          {opt === 1 ? 'Normal' : opt === 'off' ? 'None' : opt + (activeMenu === 'speed' ? 'x' : '')}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
             <ControlsBar {...controlProps}/>
           </div>
 
