@@ -7,12 +7,7 @@ const CAPTION_LANGS = [
   { code: "hi", label: "Hindi", flag: "🇮🇳" },
   { code: "es", label: "Spanish", flag: "🇪🇸" },
   { code: "fr", label: "French", flag: "🇫🇷" },
-  { code: "de", label: "German", flag: "🇩🇪" },
-  { code: "ja", label: "Japanese", flag: "🇯🇵" },
-  { code: "zh", label: "Chinese", flag: "🇨🇳" },
-  { code: "ar", label: "Arabic", flag: "🇸🇦" },
-  { code: "pt", label: "Portuguese", flag: "🇧🇷" },
-  { code: "ko", label: "Korean", flag: "🇰🇷" },
+  { code: "de", label: "German", flag: "🇩🇪" }
 ];
 
 // ── Pill button ───────────────────────────────────────────────────────────────
