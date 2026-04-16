@@ -123,9 +123,10 @@ function MobileSheet({ open, onClose, title, children }) {
         style={{
           position: "fixed",
           inset: 0,
-          background: "rgba(0,0,0,.65)",
-          zIndex: 999990,
+          background: "rgba(0,0,0,.75)",
+          zIndex: 1000000,
           WebkitTapHighlightColor: "transparent",
+          backdropFilter: "blur(4px)",
         }}
       />
       {/* Sheet */}
@@ -139,7 +140,7 @@ function MobileSheet({ open, onClose, title, children }) {
           borderRadius: "20px 20px 0 0",
           border: `1px solid ${C.border}`,
           zIndex: 999991,
-          maxHeight: "60vh",
+          maxHeight: "80vh",
           display: "flex",
           flexDirection: "column",
           boxShadow: "0 -8px 40px rgba(0,0,0,.9)",
@@ -268,6 +269,7 @@ function CaptionPicker({ selectedLang, onSelect, videoEl, captionStatus, isMobil
       key={lang.code}
       onClick={() => handleSelect(lang)}
       style={{
+        visibility: "visible",
         padding: isMobile ? "14px 18px" : "10px 16px",
         cursor: "pointer",
         fontSize: isMobile ? 15 : 13,
