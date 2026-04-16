@@ -299,9 +299,8 @@ export default function PlayerModal({ video: initVideo, onClose }) {
   const [adData,       setAdData]      = useState(null);
   const [dlPending,    setDlPending]   = useState(false);
   const [sidebarAd,    setSidebarAd]   = useState(()=>SIDEBAR_ADS[0]);
-  const bufferingTimeout = useRef(null); // Add this near your other refs
-  const [activeMenu, setActiveMenu] = useState(null);
-// Near your other useState hooks
+  const [isMenuOpen, setIsMenuOpen] = useState(false); // General flag for any open menu
+
   const { liked, count: likeCount, toggle: toggleLike } = useVideoLike(video.id, false, video.likes_count);
 
   // Rotate sidebar ad
@@ -311,21 +310,7 @@ export default function PlayerModal({ video: initVideo, onClose }) {
     return ()=>clearInterval(t);
   },[]);
 
-  // Add the missing togglePlay function
-const togglePlay = useCallback(() => {
-  const v = vRef.current; 
-  if (!v || adActive) return;
-  if (v.paused) { 
-    v.play().then(() => setPlaying(true)).catch(() => {}); 
-    revealCtrl(); 
-  } else { 
-    v.pause(); 
-    setPlaying(false); 
-    setShowCtrl(true); 
-    clearTimeout(ctrlTimer.current); 
-  }
-}, [revealCtrl, adActive]);
-
+  // Reset on video change
   useEffect(() => {
     viewGuard.current = false;
     setVideo(buildVideoState(initVideo));
@@ -421,46 +406,19 @@ const togglePlay = useCallback(() => {
   useEffect(()=>{
     const v=vRef.current; if(!v) return;
     setBuffered(0);setProg(0);setCurTime(0);setDur(0);
-    if (!adActive && v.readyState < 3) {
-    setIsBuffering(true);
-  } else {
-    setIsBuffering(false);
-      v.pause(); v.currentTime=0;
-  }
-  
+    if (!adActive) setIsBuffering(true);
+    else { setIsBuffering(false); v.pause(); v.currentTime=0; }
 
-   const tryPlay = () => {
-  if (!vRef.current) return;
-  if (adActive) { 
-    vRef.current.pause(); 
-    vRef.current.currentTime = 0; 
-  } else {
-    // Use a small delay or direct play
-    vRef.current.play()
-      .then(() => {
-        setPlaying(true);
-        setIsBuffering(false); // Force hide loader on success
-      })
-      .catch(() => {});
-  }
-};
-    
+    const tryPlay=()=>{
+      if (!vRef.current) return;
+      if (adActive) { vRef.current.pause(); vRef.current.currentTime=0; }
+      else { vRef.current.currentTime=0; vRef.current.play().then(()=>setPlaying(true)).catch(()=>{}); }
+    };
     if (v.readyState>=2) tryPlay(); else v.addEventListener("canplay",tryPlay,{once:true});
 
     const upd=()=>{ setCurTime(v.currentTime); setDur(v.duration||0); setProg(v.duration?(v.currentTime/v.duration)*100:0); };
-    // Find these lines (approx. 429-430) and replace them:
-const onWaiting = () => { 
-  if (!adActive) {
-    // Wait 500ms before showing the loading spinner
-    clearTimeout(bufferingTimeout.current);
-    bufferingTimeout.current = setTimeout(() => setIsBuffering(true), 500);
-  }
-};
-
-const onPlaying = () => {
-  clearTimeout(bufferingTimeout.current);
-  setIsBuffering(false);
-};
+    const onWaiting=()=>{ if(!adActive) setIsBuffering(true); };
+    const onPlaying=()=>setIsBuffering(false);
     const onSeeking=()=>{ if(!adActive) setIsBuffering(true); };
     const onSeeked=()=>setIsBuffering(false);
     const onProgress=()=>{ if(v.buffered.length&&v.duration) setBuffered((v.buffered.end(v.buffered.length-1)/v.duration)*100); };
@@ -489,26 +447,23 @@ const onPlaying = () => {
     return()=>{ document.removeEventListener("fullscreenchange",fn); document.removeEventListener("webkitfullscreenchange",fn); };
   },[]);
 
-  // ── Controls ─────────────────────────────────────────────────────────────────
 const revealCtrl = useCallback(() => {
-  setShowCtrl(true); 
+  setShowCtrl(true);
   clearTimeout(ctrlTimer.current);
-  
-  // Only start the hide timer if no menu is open
-  if (!activeMenu) {
-    ctrlTimer.current = setTimeout(() => setShowCtrl(false), 3500);
-  }
-}, [activeMenu]);
 
-// Also add an effect to keep controls visible when a menu opens
-useEffect(() => {
-  if (activeMenu) {
-    setShowCtrl(true);
-    clearTimeout(ctrlTimer.current);
-  } else {
-    revealCtrl();
+  // ONLY start the auto-hide timer if NO menu is open
+  if (!isMenuOpen) {
+    ctrlTimer.current = setTimeout(() => {
+      setShowCtrl(false);
+    }, 3500);
   }
-}, [activeMenu, revealCtrl]);
+}, [isMenuOpen]); // Add isMenuOpen as a dependency
+
+  const togglePlay = useCallback(()=>{
+    const v=vRef.current; if(!v||adActive) return;
+    if (v.paused) { v.play().then(()=>setPlaying(true)).catch(()=>{}); revealCtrl(); }
+    else { v.pause(); setPlaying(false); setShowCtrl(true); clearTimeout(ctrlTimer.current); }
+  },[revealCtrl,adActive]);
 
   const seekBy = useCallback(secs=>{
     const v=vRef.current; if(!v||adActive) return;
@@ -585,17 +540,12 @@ useEffect(() => {
     clearTimeout(lpTimerRef.current);
 
     // Release 3× speed
-   if (is3x) {
-    const v = vRef.current;
-    if (v) { 
-      v.playbackRate = 1; // Explicitly set back to 1
+    if (is3x) {
+      const v=vRef.current;
+      if (v) { v.playbackRate=1; setSpeed(1); }
+      setIs3x(false); setSeekFlash(null); setArcProg(0);
+      return;
     }
-    setSpeed(1);       // Update state
-    setIs3x(false);    // Update state
-    setSeekFlash(null);
-    setArcProg(0);
-    return; // Stop here so it doesn't trigger a "tap" as well
-  }
     if (adActive) return;
 
     const rect    = e.currentTarget.getBoundingClientRect();
@@ -667,19 +617,20 @@ useEffect(() => {
     wrapRef.current?.scrollIntoView({behavior:"smooth",block:"start"});
   },[cancelAuto]);
 
-const controlProps = {
-  playing, muted, vol, prog, dur, curTime, speed, isFS, isMobile,
-  showCtrl, vRef, captionLang, onCaptionChange: setCaptionLang,
-  buffered, isBuffering, captionStatus: "off",
-  togglePlay, seekBy, toggleFS,
-  // Add these triggers
-  openSpeedMenu: () => setActiveMenu('speed'),
-  openCaptionMenu: () => setActiveMenu('caption'),
-  setSpeedTo: s => {
-    const v = vRef.current;
-    if (v) v.playbackRate = s;
-    setSpeed(s);
-  },
+  const controlProps = {
+    onMenuToggle: (isOpen) => {
+    setIsMenuOpen(isOpen);
+    if (isOpen) {
+      clearTimeout(ctrlTimer.current); // Stop the timer immediately
+    } else {
+      revealCtrl(); // Restart the timer when menu closes
+    }
+  }
+    playing,muted,vol,prog,dur,curTime,speed,isFS,isMobile,
+    showCtrl,vRef,captionLang,onCaptionChange:setCaptionLang,
+    buffered,isBuffering,captionStatus:"off",
+    togglePlay,seekBy,toggleFS,
+    setSpeedTo:s=>{const v=vRef.current;if(v)v.playbackRate=s;setSpeed(s);},
     onMute:()=>{ const v=vRef.current;if(!v)return;v.muted=!v.muted;setMuted(v.muted); },
     onVolume:n=>{ setVol(n);if(vRef.current){vRef.current.volume=n;vRef.current.muted=n===0;setMuted(n===0);} },
   };
@@ -714,8 +665,14 @@ const controlProps = {
 
           {/* ── Player ── */}
           <div ref={wrapRef}
-            onMouseMove={()=>{ if(!isMobile) revealCtrl(); }}
-            onMouseLeave={()=>{ if(!isMobile&&playing) { clearTimeout(ctrlTimer.current); ctrlTimer.current=setTimeout(()=>setShowCtrl(false),600); } }}
+          onMouseMove={revealCtrl} // This will now stay visible if isMenuOpen is true
+  onMouseLeave={() => {
+    // Only auto-hide on leave if no menu is open
+    if (!isMobile && playing && !isMenuOpen) {
+      clearTimeout(ctrlTimer.current);
+      ctrlTimer.current = setTimeout(() => setShowCtrl(false), 600);
+    }
+  }}
             style={{
               position:"relative",background:"#000",width:"100%",
               overflow:"hidden",aspectRatio:isFS?"unset":"16/9",userSelect:"none",
@@ -723,12 +680,6 @@ const controlProps = {
             }}
           >
             <video ref={vRef} src={video.video_url} playsInline
-              preload="metadata"
-              autoPlay
-              onCanPlay={(e) => {
-    e.target.play().catch(() => {});
-    setIsBuffering(false);
-  }}
               onTimeUpdate={()=>{ if(adActive&&vRef.current&&vRef.current.currentTime>0){vRef.current.currentTime=0;} }}
               onPlay={()=>{ if(adActive){vRef.current.pause();vRef.current.currentTime=0;}else setPlaying(true); }}
               onPause={()=>setPlaying(false)}
@@ -774,51 +725,7 @@ const controlProps = {
                 ⊡ Exit
               </button>
             )}
-{/* --- CENTER MENU OVERLAY --- */}
-{activeMenu && (
-  <div 
-    onClick={() => setActiveMenu(null)} 
-    style={{
-      position: "absolute", inset: 0, zIndex: 100,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      background: "rgba(0,0,0,0.6)", backdropFilter: "blur(5px)",
-    }}
-  >
-    <div 
-      onClick={e => e.stopPropagation()} 
-      style={{
-        background: C.bg, borderRadius: 20, padding: 20, minWidth: 220,
-        border: `1px solid ${C.border}`, boxShadow: "0 25px 50px rgba(0,0,0,0.5)"
-      }}
-    >
-      <div style={{ fontWeight: 800, marginBottom: 15, textAlign: "center", color: C.text }}>
-        {activeMenu === 'speed' ? 'Playback Speed' : 'Captions'}
-      </div>
-      
-      {(activeMenu === 'speed' ? [0.5, 1, 1.5, 2] : ['off', 'en', 'es']).map(opt => (
-        <button 
-          key={opt}
-          onClick={() => {
-            if(activeMenu === 'speed') {
-                const v = vRef.current;
-                if (v) v.playbackRate = opt;
-                setSpeed(opt);
-            } else setCaptionLang(opt);
-            setActiveMenu(null);
-          }}
-          style={{ 
-            width: "100%", padding: "12px", marginBottom: 5, borderRadius: 10,
-            border: "none", background: (speed === opt || captionLang === opt) ? C.accent : C.bg3,
-            color: (speed === opt || captionLang === opt) ? "white" : C.text,
-            cursor: "pointer", fontWeight: 600
-          }}
-        >
-          {opt === 1 ? 'Normal' : opt === 'off' ? 'None' : opt + (activeMenu === 'speed' ? 'x' : '')}
-        </button>
-      ))}
-    </div>
-  </div>
-)}
+
             <ControlsBar {...controlProps}/>
           </div>
 
