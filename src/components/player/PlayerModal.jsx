@@ -772,7 +772,8 @@ export default function PlayerModal({ video: initVideo, onClose }) {
             }}
             style={{
               position: "relative", background: "#000", width: "100%",
-              overflow: "hidden", aspectRatio: isFS ? "unset" : "16/9", userSelect: "none",
+              overflow: isMobile ? "visible" : "hidden", 
+      aspectRatio: isFS ? "unset" : "16/9",userSelect: "none",
               ...(isFS ? { position: "fixed", inset: 0, zIndex: 99999 } : {}),
             }}
           >
