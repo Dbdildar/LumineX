@@ -311,6 +311,23 @@ const [activeMenu, setActiveMenu] = useState(null); // 'speed', 'caption', or nu
     return ()=>clearInterval(t);
   },[]);
 
+  // Add the missing togglePlay function
+const togglePlay = useCallback(() => {
+  const v = vRef.current; 
+  if (!v || adActive) return;
+  if (v.paused) { 
+    v.play().then(() => setPlaying(true)).catch(() => {}); 
+    revealCtrl(); 
+  } else { 
+    v.pause(); 
+    setPlaying(false); 
+    setShowCtrl(true); 
+    clearTimeout(ctrlTimer.current); 
+  }
+}, [revealCtrl, adActive]);
+
+// Add the state for the center menus
+const [activeMenu, setActiveMenu] = useState(null); // 'speed' or 'caption'
   // Reset on video change
   useEffect(() => {
     viewGuard.current = false;
@@ -653,12 +670,19 @@ useEffect(() => {
     wrapRef.current?.scrollIntoView({behavior:"smooth",block:"start"});
   },[cancelAuto]);
 
-  const controlProps = {
-    playing,muted,vol,prog,dur,curTime,speed,isFS,isMobile,
-    showCtrl,vRef,captionLang,onCaptionChange:setCaptionLang,
-    buffered,isBuffering,captionStatus:"off",
-    togglePlay,seekBy,toggleFS,
-    setSpeedTo:s=>{const v=vRef.current;if(v)v.playbackRate=s;setSpeed(s);},
+const controlProps = {
+  playing, muted, vol, prog, dur, curTime, speed, isFS, isMobile,
+  showCtrl, vRef, captionLang, onCaptionChange: setCaptionLang,
+  buffered, isBuffering, captionStatus: "off",
+  togglePlay, seekBy, toggleFS,
+  // Add these triggers
+  openSpeedMenu: () => setActiveMenu('speed'),
+  openCaptionMenu: () => setActiveMenu('caption'),
+  setSpeedTo: s => {
+    const v = vRef.current;
+    if (v) v.playbackRate = s;
+    setSpeed(s);
+  },
     onMute:()=>{ const v=vRef.current;if(!v)return;v.muted=!v.muted;setMuted(v.muted); },
     onVolume:n=>{ setVol(n);if(vRef.current){vRef.current.volume=n;vRef.current.muted=n===0;setMuted(n===0);} },
   };
