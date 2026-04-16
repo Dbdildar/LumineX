@@ -194,7 +194,7 @@ function MobileSheet({ open, onClose, title, children }) {
           position: "fixed",
           inset: 0,
           background: "rgba(0,0,0,.75)",
-          zIndex: 2000000, // Absolute priority
+          zIndex: 9999998, // Extremely high to stay above player
           WebkitTapHighlightColor: "transparent",
           backdropFilter: "blur(4px)",
         }}
@@ -206,15 +206,15 @@ function MobileSheet({ open, onClose, title, children }) {
           left: 0,
           right: 0,
           background: C.bg2 || "#1a1a2e",
-          borderRadius: "20px 20px 0 0",
+          borderRadius: "24px 24px 0 0",
           borderTop: `1px solid ${C.border}`,
-          zIndex: 2000001,
-          maxHeight: "75vh",
+          zIndex: 9999999, // Extremely high
+          maxHeight: "85vh", // Increased height for better visibility
+          height: "auto",
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 -10px 40px rgba(0,0,0,.9)",
+          boxShadow: "0 -10px 40px rgba(0,0,0,1)",
           animation: "slideUpSheet .3s cubic-bezier(0.36, 0.07, 0.19, 0.97)",
-          // Fix for modern mobile browsers with home indicators
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
         onTouchStart={(e) => e.stopPropagation()}
@@ -227,41 +227,49 @@ function MobileSheet({ open, onClose, title, children }) {
             to   { transform: translateY(0); }
           }
         `}</style>
+        
+        {/* Drag Handle */}
         <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 8px", flexShrink: 0 }}>
-          <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,.2)" }} />
+          <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,.3)" }} />
         </div>
+
+        {/* Header */}
         <div style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 20px 12px",
+          padding: "0 20px 14px",
           borderBottom: `1px solid ${C.border}44`,
           flexShrink: 0,
         }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: C.text, textTransform: "uppercase", letterSpacing: 0.8 }}>{title}</span>
+          <span style={{ fontSize: 14, fontWeight: 800, color: C.text, textTransform: "uppercase", letterSpacing: 1 }}>{title}</span>
           <button
             onClick={onClose}
             style={{
               background: "rgba(255,255,255,.1)",
               border: "none",
-              borderRadius: 8,
+              borderRadius: "50%",
               color: "white",
-              fontSize: 14,
-              width: 30,
-              height: 30,
+              fontSize: 12,
+              width: 32,
+              height: 32,
               cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
             }}
           >
             ✕
           </button>
         </div>
-        {/* FIX: Ensure scroll container has flex-grow and doesn't collapse */}
+
+        {/* FIX: Scroll Container with flex-grow and proper overflow */}
         <div style={{ 
             overflowY: "auto", 
             flex: 1, 
             WebkitOverflowScrolling: "touch", 
-            minHeight: "250px", // Prevents the half-hidden issue
-            padding: "8px 0"
+            padding: "8px 0",
+            display: "block" // Ensure it doesn't flex-center its children
         }}>
           {children}
         </div>
@@ -335,13 +343,13 @@ function CaptionPicker({ selectedLang, onSelect, videoEl, captionStatus, isMobil
       key={lang.code}
       onClick={() => handleSelect(lang)}
       style={{
-        padding: "16px 20px", // Larger touch target
+        padding: "16px 20px",
         cursor: "pointer",
         fontSize: 15,
         display: "flex",
         alignItems: "center",
         gap: 12,
-        color: selectedLang === lang.code ? C.accent : "white", // Improved contrast
+        color: selectedLang === lang.code ? C.accent : "white",
         background: selectedLang === lang.code ? `${C.accent}15` : "transparent",
         fontWeight: selectedLang === lang.code ? 700 : 400,
         borderBottom: `1px solid ${C.border}22`,
@@ -519,11 +527,11 @@ export default function ControlsBar({
         background: "linear-gradient(transparent,rgba(0,0,0,.92))",
         padding: isFS ? "60px 20px 22px" : isMobile ? "38px 12px 14px" : "52px 18px 16px",
         opacity: showCtrl ? 1 : 0,
-        // FIX: The transform here was trapping the MobileSheet. 
-        // We ensure it only applies when the menu is NOT open.
+        // Ensure that even if showCtrl is false, the portal content (sheets) can still be clicked
         transform: showCtrl ? "translateY(0)" : "translateY(8px)",
         transition: "opacity .3s ease, transform .3s ease",
-        pointerEvents: showCtrl ? "auto" : "none",
+        // Note: pointerEvents is "auto" because we handle sub-menu visibility separately
+        pointerEvents: "auto", 
         zIndex: 10000,
         overflow: "visible",
       }}
@@ -534,6 +542,8 @@ export default function ControlsBar({
         display: "flex",
         alignItems: "center",
         gap: isMobile ? 4 : 8,
+        opacity: showCtrl ? 1 : 0, // Visual hiding of internal buttons
+        transition: "opacity .2s ease",
         ...(isMobile ? {
           overflowX: "auto",
           WebkitOverflowScrolling: "touch",
