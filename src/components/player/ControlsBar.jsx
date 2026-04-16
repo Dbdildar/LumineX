@@ -105,13 +105,14 @@ function CaptionPicker({ selectedLang, onSelect, videoEl, captionStatus, isMobil
     borderRadius:"20px 20px 0 0",
     border:`1px solid ${C.border}`,
     zIndex:9999,
-    maxHeight:"70vh",
+    maxHeight:"60vh",
     boxShadow:"0 -8px 32px rgba(0,0,0,.8)",
     animation:"fadeUp .2s ease",
     overflow:"hidden",
     display:"flex",
     flexDirection:"column",
     overflowY: "auto",
+    WebkitOverflowScrolling: "touch",
   } : {
     position:"absolute",bottom:"calc(100% + 8px)",right:0,
     background:C.bg2,border:`1px solid ${C.border}`,
@@ -152,7 +153,7 @@ function CaptionPicker({ selectedLang, onSelect, videoEl, captionStatus, isMobil
             </div>
 
             {/* Scrollable language list */}
-            <div style={{ overflowY:"auto",flex:1,WebkitOverflowScrolling:"touch" }}>
+            <div style={{ overflowY:"auto",flex:1,WebkitOverflowScrolling:"touch",minHeight: 0 }}>
               {CAPTION_LANGS.map(lang=>(
                 <div key={lang.code} onClick={()=>handleSelect(lang)} style={{
                   padding:isMobile?"14px 18px":"10px 16px",cursor:"pointer",fontSize:isMobile?15:13,
@@ -202,8 +203,8 @@ function SpeedMenu({ speed, setSpeedTo, isMobile }) {
     position:"fixed",bottom:0,left:0,right:0,
     background:C.bg2,borderRadius:"20px 20px 0 0",
     border:`1px solid ${C.border}`,zIndex:9999,
-    maxHeight:"60vh",boxShadow:"0 -8px 32px rgba(0,0,0,.8)",overflowY: "auto",
-    animation:"fadeUp .2s ease",overflow:"hidden",display:"flex",flexDirection:"column",
+    maxHeight:"50vh",boxShadow:"0 -8px 32px rgba(0,0,0,.8)",overflowY: "auto",
+    animation:"fadeUp .2s ease",overflow:"hidden",display:"flex",flexDirection:"column",WebkitOverflowScrolling: "touch",
   } : {
     position:"absolute",bottom:"calc(100% + 8px)",right:0,
     background:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,
@@ -227,7 +228,7 @@ function SpeedMenu({ speed, setSpeedTo, isMobile }) {
             <div style={{ padding:"10px 16px 8px",fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.8,borderBottom:`1px solid ${C.border}`,flexShrink:0 }}>
               ⚡ Playback Speed
             </div>
-            <div style={{ overflowY:"auto",flex:1 }}>
+            <div style={{ overflowY:"auto",flex:1,minHeight: 0 }}>
               {SPEEDS.map(s=>(
                 <div key={s} onClick={()=>{setSpeedTo(s);setOpen(false);}} style={{
                   padding:isMobile?"14px 18px":"9px 16px",cursor:"pointer",fontSize:isMobile?15:13,
