@@ -446,7 +446,6 @@ const onPlaying = () => {
   clearTimeout(bufferingTimeout.current);
   setIsBuffering(false);
 };
-    const onPlaying=()=>setIsBuffering(false);
     const onSeeking=()=>{ if(!adActive) setIsBuffering(true); };
     const onSeeked=()=>setIsBuffering(false);
     const onProgress=()=>{ if(v.buffered.length&&v.duration) setBuffered((v.buffered.end(v.buffered.length-1)/v.duration)*100); };
