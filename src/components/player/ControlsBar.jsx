@@ -6,7 +6,6 @@ const CAPTION_LANGS = [
   { code: "en", label: "English", flag: "🇬🇧" },
   { code: "hi", label: "Hindi", flag: "🇮🇳" },
   { code: "fr", label: "French", flag: "🇫🇷" },
-
 ];
 
 // ── Pill button ───────────────────────────────────────────────────────────────
@@ -47,6 +46,7 @@ function Seekbar({ prog, dur, buffered, onSeek }) {
   const ref = useRef(null);
   const [hoverPct, setHoverPct] = useState(null);
   const [dragging, setDragging] = useState(false);
+
   const getPct = (clientX) => {
     const r = ref.current?.getBoundingClientRect();
     if (!r) return 0;
@@ -57,6 +57,7 @@ function Seekbar({ prog, dur, buffered, onSeek }) {
     setDragging(true);
     onSeek(getPct(e.clientX));
   };
+
   const onMove = (e) => {
     if (dragging) onSeek(getPct(e.clientX));
     setHoverPct(getPct(e.clientX));
@@ -189,7 +190,7 @@ function MobileSheet({ open, onClose, title, children }) {
           position: "fixed",
           inset: 0,
           background: "rgba(0,0,0,.75)",
-          zIndex: 2000000, 
+          zIndex: 2000000,
           WebkitTapHighlightColor: "transparent",
           backdropFilter: "blur(4px)",
         }}
@@ -212,7 +213,7 @@ function MobileSheet({ open, onClose, title, children }) {
           animation: "slideUpSheet .3s cubic-bezier(0.36, 0.07, 0.19, 0.97)",
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         <style>{`
           @keyframes slideUpSheet {
@@ -220,33 +221,48 @@ function MobileSheet({ open, onClose, title, children }) {
             to   { transform: translateY(0); }
           }
         `}</style>
-        
+
         {/* Drag Handle */}
         <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 8px", flexShrink: 0 }}>
           <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,.3)" }} />
         </div>
 
         {/* Header */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 20px 14px",
-          borderBottom: `1px solid ${C.border}44`,
-          flexShrink: 0,
-        }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 20px 14px",
+            borderBottom: `1px solid ${C.border}44`,
+            flexShrink: 0,
+          }}
+        >
           <span style={{ fontSize: 14, fontWeight: 800, color: C.text, textTransform: "uppercase" }}>{title}</span>
-          <button onClick={onClose} style={{ background: "rgba(255,255,255,.1)", border: "none", borderRadius: "50%", color: "white", width: 32, height: 32 }}>✕</button>
+          <button
+            onClick={onClose}
+            style={{
+              background: "rgba(255,255,255,.1)",
+              border: "none",
+              borderRadius: "50%",
+              color: "white",
+              width: 32,
+              height: 32,
+            }}
+          >
+            ✕
+          </button>
         </div>
 
-        {/* FIX: Ensure display: block and clear overflow for top content visibility */}
-        <div style={{ 
-            overflowY: "auto", 
-            flex: "1 1 auto", 
-            WebkitOverflowScrolling: "touch", 
+        <div
+          style={{
+            overflowY: "auto",
+            flex: "1 1 auto",
+            WebkitOverflowScrolling: "touch",
             padding: "8px 0 20px",
-            display: "block", // Critical for top items visibility
-        }}>
+            display: "block",
+          }}
+        >
           {children}
         </div>
       </div>
@@ -259,14 +275,19 @@ function CaptionPicker({ selectedLang, onSelect, videoEl, captionStatus, isMobil
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
-  const handleOpen = useCallback((val) => {
-    setOpen(val);
-    onMenuToggle?.(val);
-  }, [onMenuToggle]);
+  const handleOpen = useCallback(
+    (val) => {
+      setOpen(val);
+      onMenuToggle?.(val);
+    },
+    [onMenuToggle]
+  );
 
   useEffect(() => {
     if (!open || isMobile) return;
-    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) handleOpen(false); };
+    const h = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) handleOpen(false);
+    };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open, isMobile, handleOpen]);
@@ -308,8 +329,29 @@ function CaptionPicker({ selectedLang, onSelect, videoEl, captionStatus, isMobil
     >
       CC
       {isOn && <span style={{ fontSize: 9 }}>{current.flag}</span>}
-      {isLoading && <span style={{ width: 6, height: 6, borderRadius: "50%", border: `1.5px solid ${C.accent}`, borderTopColor: "transparent", animation: "spin .7s linear infinite" }} />}
-      {isActive && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00e676", boxShadow: "0 0 4px #00e676" }} />}
+      {isLoading && (
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            border: `1.5px solid ${C.accent}`,
+            borderTopColor: "transparent",
+            animation: "spin .7s linear infinite",
+          }}
+        />
+      )}
+      {isActive && (
+        <span
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: "#00e676",
+            boxShadow: "0 0 4px #00e676",
+          }}
+        />
+      )}
       {isError && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ff5252" }} />}
     </button>
   );
@@ -338,7 +380,16 @@ function CaptionPicker({ selectedLang, onSelect, videoEl, captionStatus, isMobil
   ));
 
   const footer = (
-    <div style={{ padding: "16px", fontSize: 10, color: C.muted, borderTop: `1px solid ${C.border}`, textAlign: "center", flexShrink: 0 }}>
+    <div
+      style={{
+        padding: "16px",
+        fontSize: 10,
+        color: C.muted,
+        borderTop: `1px solid ${C.border}`,
+        textAlign: "center",
+        flexShrink: 0,
+      }}
+    >
       ⚡ Powered by Whisper AI
     </div>
   );
@@ -359,19 +410,33 @@ function CaptionPicker({ selectedLang, onSelect, videoEl, captionStatus, isMobil
     <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
       {triggerBtn}
       {open && (
-        <div style={{
-          position: "absolute",
-          bottom: "calc(100% + 8px)",
-          right: 0,
-          background: C.bg2,
-          border: `1px solid ${C.border}`,
-          borderRadius: 14,
-          overflow: "hidden",
-          zIndex: 999,
-          minWidth: 200,
-          boxShadow: "0 8px 32px rgba(0,0,0,.8)",
-        }}>
-          <div style={{ padding: "12px 16px 10px", fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 8px)",
+            right: 0,
+            background: C.bg2,
+            border: `1px solid ${C.border}`,
+            borderRadius: 14,
+            overflow: "hidden",
+            zIndex: 999,
+            minWidth: 200,
+            boxShadow: "0 8px 32px rgba(0,0,0,.8)",
+          }}
+        >
+          <div
+            style={{
+              padding: "12px 16px 10px",
+              fontSize: 11,
+              fontWeight: 700,
+              color: C.muted,
+              textTransform: "uppercase",
+              borderBottom: `1px solid ${C.border}`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
             <span>🌐 Subtitles / CC</span>
           </div>
           <div style={{ overflowY: "auto", maxHeight: 280 }}>{langList}</div>
@@ -388,14 +453,19 @@ function SpeedMenu({ speed, setSpeedTo, isMobile, onMenuToggle }) {
   const ref = useRef(null);
   const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
-  const handleOpen = useCallback((val) => {
-    setOpen(val);
-    onMenuToggle?.(val);
-  }, [onMenuToggle]);
+  const handleOpen = useCallback(
+    (val) => {
+      setOpen(val);
+      onMenuToggle?.(val);
+    },
+    [onMenuToggle]
+  );
 
   useEffect(() => {
     if (!open || isMobile) return;
-    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) handleOpen(false); };
+    const h = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) handleOpen(false);
+    };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open, isMobile, handleOpen]);
@@ -403,7 +473,10 @@ function SpeedMenu({ speed, setSpeedTo, isMobile, onMenuToggle }) {
   const speedList = SPEEDS.map((s) => (
     <div
       key={s}
-      onClick={() => { setSpeedTo(s); handleOpen(false); }}
+      onClick={() => {
+        setSpeedTo(s);
+        handleOpen(false);
+      }}
       style={{
         padding: "16px 20px",
         cursor: "pointer",
@@ -457,19 +530,30 @@ function SpeedMenu({ speed, setSpeedTo, isMobile, onMenuToggle }) {
     <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
       {triggerBtn}
       {open && (
-        <div style={{
-          position: "absolute",
-          bottom: "calc(100% + 8px)",
-          right: 0,
-          background: C.bg2,
-          border: `1px solid ${C.border}`,
-          borderRadius: 12,
-          overflow: "hidden",
-          zIndex: 999,
-          minWidth: 110,
-          boxShadow: "0 8px 30px rgba(0,0,0,.8)",
-        }}>
-          <div style={{ padding: "10px 16px 8px", fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", borderBottom: `1px solid ${C.border}` }}>
+        <div
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 8px)",
+            right: 0,
+            background: C.bg2,
+            border: `1px solid ${C.border}`,
+            borderRadius: 12,
+            overflow: "hidden",
+            zIndex: 999,
+            minWidth: 110,
+            boxShadow: "0 8px 30px rgba(0,0,0,.8)",
+          }}
+        >
+          <div
+            style={{
+              padding: "10px 16px 8px",
+              fontSize: 11,
+              fontWeight: 700,
+              color: C.muted,
+              textTransform: "uppercase",
+              borderBottom: `1px solid ${C.border}`,
+            }}
+          >
             ⚡ Speed
           </div>
           <div style={{ overflowY: "auto", maxHeight: 240 }}>{speedList}</div>
@@ -481,10 +565,28 @@ function SpeedMenu({ speed, setSpeedTo, isMobile, onMenuToggle }) {
 
 // ── MAIN ControlsBar ─────────────────────────────────────────────────────────────
 export default function ControlsBar({
-  playing, muted, vol, prog, dur, curTime, speed, isFS, isMobile,
-  showCtrl, vRef, captionLang, onCaptionChange,
-  togglePlay, seekBy, toggleFS, setSpeedTo, onMute, onVolume,
-  buffered, isBuffering, captionStatus,
+  playing,
+  muted,
+  vol,
+  prog,
+  dur,
+  curTime,
+  speed,
+  isFS,
+  isMobile,
+  showCtrl,
+  vRef,
+  captionLang,
+  onCaptionChange,
+  togglePlay,
+  seekBy,
+  toggleFS,
+  setSpeedTo,
+  onMute,
+  onVolume,
+  buffered,
+  isBuffering,
+  captionStatus,
   onMenuToggle,
 }) {
   const handleSeek = (pct) => {
@@ -503,38 +605,45 @@ export default function ControlsBar({
         background: "linear-gradient(transparent,rgba(0,0,0,.92))",
         padding: isFS ? "60px 20px 22px" : isMobile ? "38px 12px 14px" : "52px 18px 16px",
         opacity: showCtrl ? 1 : 0,
-        // FIX: Remove transform translateY on mobile so fixed sheet isn't clipped
-        transform: (showCtrl || isMobile) ? "translateY(0)" : "translateY(8px)",
+        transform: showCtrl || isMobile ? "translateY(0)" : "translateY(8px)",
         transition: "opacity .3s ease, transform .3s ease",
-        pointerEvents: "auto", 
+        pointerEvents: "auto",
         zIndex: 10000,
-        overflow: "visible", // Critical for sheet visibility
+        overflow: "visible",
       }}
     >
       <Seekbar prog={prog} dur={dur} buffered={buffered || 0} onSeek={handleSeek} />
 
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: isMobile ? 4 : 8,
-        opacity: showCtrl ? 1 : 0, 
-        transition: "opacity .2s ease",
-        ...(isMobile ? {
-          overflowX: "auto",
-          WebkitOverflowScrolling: "touch",
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-          paddingBottom: 2,
-        } : {}),
-      }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: isMobile ? 4 : 8,
+          opacity: showCtrl ? 1 : 0,
+          transition: "opacity .2s ease",
+          ...(isMobile
+            ? {
+                overflowX: "auto",
+                WebkitOverflowScrolling: "touch",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+                paddingBottom: 2,
+              }
+            : {}),
+        }}
+      >
         <PBtn onClick={togglePlay}>{playing ? "⏸" : "▶"}</PBtn>
-        <PBtn onClick={() => seekBy(-10)}>⟲</PBtn>
-        <PBtn onClick={() => seekBy(10)}>⟳</PBtn>
+        {/* FIX: seekBy(-10) = backward, seekBy(10) = forward — icons match direction */}
+        <PBtn onClick={() => seekBy(-10)} title="Rewind 10s">⟲</PBtn>
+        <PBtn onClick={() => seekBy(10)} title="Forward 10s">⟳</PBtn>
         <PBtn onClick={onMute}>{muted ? "🔇" : "🔊"}</PBtn>
 
         {(!isMobile || isFS) && (
           <input
-            type="range" min={0} max={1} step={0.05}
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
             value={muted ? 0 : vol}
             onChange={(e) => onVolume(+e.target.value)}
             style={{ width: isFS ? 90 : 70, accentColor: "var(--accent)" }}
@@ -556,12 +665,7 @@ export default function ControlsBar({
           onMenuToggle={onMenuToggle}
         />
 
-        <SpeedMenu
-          speed={speed}
-          setSpeedTo={setSpeedTo}
-          isMobile={isMobile}
-          onMenuToggle={onMenuToggle}
-        />
+        <SpeedMenu speed={speed} setSpeedTo={setSpeedTo} isMobile={isMobile} onMenuToggle={onMenuToggle} />
 
         <PBtn onClick={toggleFS}>{isFS ? "⊡" : "⛶"}</PBtn>
       </div>
