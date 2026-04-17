@@ -63,8 +63,7 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
   };
 
 
-  // Inside VideoCard.jsx
-  const { session, showToast } = useApp();
+
   const [saved, setSaved] = useState(false);
 
   // Add an effect to check if the video is already saved when the card loads
@@ -172,8 +171,6 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
   };
 
 
-  // ... after other hooks like useVideoLike ...
-  const [currentViews, setCurrentViews] = useState(video.views || video.views || 0);
 
  useEffect(() => {
   const handleUpdate = (e) => {
