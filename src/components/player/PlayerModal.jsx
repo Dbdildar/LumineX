@@ -262,7 +262,7 @@ function SidebarAdWidget({ ad }) {
 // MAIN PLAYER MODAL
 // ─────────────────────────────────────────────────────────────────────────────
 export default function PlayerModal({ video: initVideo, onClose }) {
-  const { session, profile, setAuthModal, showToast } = useApp();
+  const { session, profile, setAuthModal, showToast, setActiveProfile, setTab, incrementView } = useApp();
   const isMobile   = useIsMobile();
   const wrapRef    = useRef(null);
   const vRef       = useRef(null);
@@ -359,13 +359,53 @@ export default function PlayerModal({ video: initVideo, onClose }) {
 
   useEffect(() => () => { if (adTimerRef.current) clearInterval(adTimerRef.current); }, []);
 
+  // Add this after your existing useEffects (approx. line 310)
+useEffect(() => {
+    const timer = setTimeout(async () => {
+        // Guard: ID exists, not already incremented in this session, video playing, and no ad overlay
+        if (video?.id && !viewGuard.current && playing && !adActive) {
+            viewGuard.current = true; // Mark as done for this video instance
+            try {
+                // This calls the database RPC via your AppContext
+                await incrementView(video.id);
+            } catch (err) {
+                console.error("Failed to increment view:", err);
+                viewGuard.current = false; // Reset if the network call failed
+            }
+        }
+    }, 5000); // 5000ms (5 seconds) watch threshold
+    return () => clearTimeout(timer);
+}, [playing, video?.id, adActive, incrementView]);
+
+  // Add this right after the previous block
+useEffect(() => {
+    const handler = (e) => {
+        if (e.detail.videoId === video.id) {
+            const newViews = e.detail.views;
+
+            // 1. Update the current component UI state
+            setVideo(prev => ({ ...prev, views: newViews }));
+
+            // 2. Sync with sessionStorage so refresh doesn't revert the number
+            const cached = sessionStorage.getItem(`video_${video.id}`);
+            let updatedData = { views: newViews };
+            if (cached) {
+                updatedData = { ...JSON.parse(cached), views: newViews };
+            }
+            sessionStorage.setItem(`video_${video.id}`, JSON.stringify(updatedData));
+        }
+    };
+    window.addEventListener("video_view_updated", handler);
+    return () => window.removeEventListener("video_view_updated", handler);
+}, [video.id]);
+
   // ── executeDownload ─────────────────────────────────────────────────────────
   const executeDownload = useCallback(() => {
     const a = document.createElement("a");
     a.href = video.video_url;
     a.download = (video.title || "video") + ".mp4";
     a.target = "_blank";
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    document.body.appendChild(a); a.click(); document.body.removeChid(a);
     showToast("Download started!", "success");
   }, [video, showToast]);
 
