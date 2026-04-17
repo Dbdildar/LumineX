@@ -82,6 +82,7 @@ export default function VideoCard({ video, cardWidth, compact, showChannel=true 
   const lpTimerRef  = useRef(null);   // long-press timer (mobile)
   const tickRef     = useRef(null);   // progress tick
   const startTRef   = useRef(null);   // touch start time
+  const [currentViews, setCurrentViews] = useState(video.views || 0);
 
   const [active,   setActive]   = useState(false);   // video playing
   const [hov,      setHov]      = useState(false);   // hover/lp active
@@ -107,6 +108,17 @@ export default function VideoCard({ video, cardWidth, compact, showChannel=true 
     v.pause(); v.currentTime=0;
     setActive(false); setVidProg(0); setBuffering(false);
   },[]);
+
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      // Check if the event belongs to THIS specific video card
+      if (e.detail.videoId === video.id) {
+        setCurrentViews(e.detail.views);
+      }
+    };
+    window.addEventListener('video_view_updated', handleUpdate);
+    return () => window.removeEventListener('video_view_updated', handleUpdate);
+  }, [video.id]);
 
   // ── Desktop hover ─────────────────────────────────────────────────────────
   const onEnter = useCallback(()=>{
