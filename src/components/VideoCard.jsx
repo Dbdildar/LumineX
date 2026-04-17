@@ -2,10 +2,11 @@ import { useState, useRef, useEffect } from "react";
 import { C, Avatar, VipBadge, VerifiedBadge, fmtNum, timeAgo } from "./ui/index";
 import { useApp } from "../context/AppContext";
 import { useIsMobile, useVideoLike } from "../hooks/index";
-import { likeAPI,videoAPI } from "../lib/supabase";
+import { likeAPI, videoAPI } from "../lib/supabase";
 
 export default function VideoCard({ video, cardWidth, compact, showViews, showChannel = true, isOwner }) {
-const { setTab, playVideo, setActiveProfile, session, showToast } = useApp();
+  // Primary declaration of app context
+  const { setTab, playVideo, setActiveProfile, session, showToast } = useApp();
   const isMobile = useIsMobile();
   const vRef = useRef(null);
   const timerRef = useRef(null);
@@ -18,11 +19,11 @@ const { setTab, playVideo, setActiveProfile, session, showToast } = useApp();
   const [lpProg, setLpProg] = useState(0);
   const [lpOn, setLpOn] = useState(false);
 
-const [currentViews, setCurrentViews] = useState(video.views_count || video.views || 0);
+  // Primary declaration of views state
+  const [currentViews, setCurrentViews] = useState(video.views_count || video.views || 0);
 
   const { liked, count: likeCount, toggle: toggleLike } = useVideoLike(video.id, false, video.likes_count);
 
-  // 1. Add these new states at the top of your component
   const [showMenu, setShowMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -33,25 +34,20 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
       return showToast("Please login to perform this action", "error");
     }
 
-    // Ensure the person deleting is the actual owner (Security check)
     if (video.user_id !== session.user.id) {
       return showToast("Unauthorized: You do not own this video", "error");
     }
-    // Prevent multiple clicks
+    
     if (isDeleting) return;
 
     setIsDeleting(true);
     try {
-      // Actual API Call
       await videoAPI.delete(video.id);
-      // Success feedback
       showToast("Video deleted permanently", "success");
-      // UI Update: Broadcast to ProfilePage to remove the card from the grid
       window.dispatchEvent(new CustomEvent('video_deleted', {
         detail: { videoId: video.id }
       }));
 
-      // Close menus
       setShowMenu(false);
       setConfirmDelete(false);
     } catch (err) {
@@ -62,11 +58,8 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
     }
   };
 
-
-
   const [saved, setSaved] = useState(false);
 
-  // Add an effect to check if the video is already saved when the card loads
   useEffect(() => {
     if (session?.user?.id) {
       likeAPI.isSaved(session.user.id, video.id).then(setSaved);
@@ -78,13 +71,10 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
     if (!session) return showToast("Please login to save videos", "info");
 
     try {
-      const nextSavedState = !saved; // What the state will become
+      const nextSavedState = !saved;
       await likeAPI.toggleSave(session.user.id, video.id, saved);
-
-      // 1. Update local state
       setSaved(nextSavedState);
 
-      // 2. ─── BROADCAST THE UPDATE ───
       window.dispatchEvent(new CustomEvent('video_save_updated', {
         detail: { videoId: video.id, isSaved: nextSavedState }
       }));
@@ -95,8 +85,6 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
     }
   };
 
-
-  // Add this inside your VideoCard component
   useEffect(() => {
     const handleGlobalSaveUpdate = (e) => {
       if (e.detail.videoId === video.id) {
@@ -107,7 +95,6 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
     window.addEventListener('video_save_updated', handleGlobalSaveUpdate);
     return () => window.removeEventListener('video_save_updated', handleGlobalSaveUpdate);
   }, [video.id]);
-
 
   function play() {
     const v = vRef.current; if (!v) return;
@@ -122,7 +109,6 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
   function onEnter() { if (isMobile) return; setHov(true); timerRef.current = setTimeout(play, 350); }
   function onLeave() { if (isMobile) return; clearTimeout(timerRef.current); setHov(false); stop(); }
 
-  // Mobile: long-press = play preview in card, single tap = open PlayerModal
   const touchStartTime = useRef(0);
   const longPressTriggered = useRef(false);
 
@@ -143,11 +129,7 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
     if (!isMobile) return;
     clearTimeout(lpRef.current); clearInterval(tickRef.current);
     setLpOn(false); setLpProg(0);
-    // If long press was triggered, just stop preview — don't open player
-    if (longPressTriggered.current) {
-      // Keep preview playing, user can tap again to open
-      return;
-    }
+    if (longPressTriggered.current) return;
     if (!active) setHov(false);
   }
 
@@ -162,25 +144,22 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
 
   const pf = video.profiles || { username: video.channel || "Unknown" };
 
-
   const handleProfileClick = (e) => {
     e.stopPropagation();
     window.scrollTo(0, 0);
-    setActiveProfile(pf); // 'pf' is the user data from the card
+    setActiveProfile(pf);
     setTab(`profile:${pf.username}`);
   };
 
-
-
- useEffect(() => {
-  const handleUpdate = (e) => {
-    if (e.detail.videoId === video.id) {
-      setCurrentViews(e.detail.views);
-    }
-  };
-  window.addEventListener('video_view_updated', handleUpdate);
-  return () => window.removeEventListener('video_view_updated', handleUpdate);
-}, [video.id]);
+  useEffect(() => {
+    const handleUpdate = (e) => {
+      if (e.detail.videoId === video.id) {
+        setCurrentViews(e.detail.views);
+      }
+    };
+    window.addEventListener('video_view_updated', handleUpdate);
+    return () => window.removeEventListener('video_view_updated', handleUpdate);
+  }, [video.id]);
 
   return (
     <div onClick={() => { if (isMobile && longPressTriggered.current) { longPressTriggered.current = false; stop(); setHov(false); return; } if (!lpOn) playVideo(video); }} onMouseEnter={onEnter} onMouseLeave={onLeave}
@@ -191,20 +170,16 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
         transform: hov ? "translateY(-5px) scale(1.015)" : "none",
         transition: "all .3s ease",
         boxShadow: hov ? `0 20px 50px rgba(0,0,0,.5),0 0 40px var(--accent)12` : `0 2px 12px rgba(0,0,0,.2)`,
-        width: cardWidth || "100%", flexShrink: cardWidth ? 0 : undefined,
-        scrollSnapAlign: cardWidth ? "start" : undefined, position: "relative",
-        /* ADD THIS LINE TO FIX BLINKING */
+        width: cardWidth || "100%", position: "relative",
         WebkitTapHighlightColor: "transparent",
         touchAction: "manipulation"
       }}>
 
-      {/* Media */}
       <div style={{ position: "relative", aspectRatio: "16/9", overflow: "hidden", background: "#111" }}>
         {!active && (
           <img src={video.thumbnail_url || `https://picsum.photos/640/360?random=${String(video.id).charCodeAt(0) || 1}`} alt={video.title} loading="lazy"
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transform: hov ? "scale(1.06)" : "scale(1)", transition: "transform .5s ease", zIndex: 1 }} />
         )}
-
 
         {hov && (
           <video ref={vRef} src={video.video_url} muted playsInline loop
@@ -240,7 +215,6 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
 
         <div style={{ position: "absolute", bottom: 8, right: 8, zIndex: 5, background: "rgba(0,0,0,.85)", color: "white", fontSize: 11, fontWeight: 700, padding: "2px 6px", borderRadius: 4 }}>{video.duration || ""}</div>
 
-        {/* Inside VideoCard.jsx - Top Right Button Section */}
         {!compact && (
           <div style={{ position: "absolute", top: 8, right: 8, zIndex: 15 }}>
             <button
@@ -312,14 +286,11 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
                         disabled={isDeleting}
                         style={{
                           flex: 1, background: isDeleting ? "#444" : "#ff4d4d", border: "none", color: "white", padding: "4px 8px", borderRadius: 4, cursor: isDeleting ? "not-allowed" : "pointer", fontSize: 11, fontWeight: 700, display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 5
+                          alignItems: "center", justifyContent: "center", gap: 5
                         }}
                       >
                         {isDeleting ? (
                           <>
-                            {/* Simple inline CSS loader */}
                             <div style={{
                               width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)",
                               borderTopColor: "#fff", borderRadius: "50%",
@@ -335,65 +306,41 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
                         onClick={() => !isDeleting && setConfirmDelete(false)}
                         disabled={isDeleting}
                         style={{
-                          flex: 1,
-                          background: "#333",
-                          border: "none",
-                          color: "#ccc",
-                          padding: "6px 10px",
-                          borderRadius: 6,
-                          cursor: isDeleting ? "not-allowed" : "pointer",
-                          fontSize: 11
+                          flex: 1, background: "#333", border: "none", color: "#ccc", padding: "6px 10px", borderRadius: 6, cursor: isDeleting ? "not-allowed" : "pointer", fontSize: 11
                         }}
                       >
                         Cancel
                       </button>
                     </div>
-                    <style>{`
-  @keyframes spin { to { transform: rotate(360deg); } }
-`}</style>
+                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                   </div>
                 )}
               </div>
             )}
           </div>
-        )} {/* This closing parenthesis and brace were missing */}
+        )}
 
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: "rgba(255,255,255,.1)", zIndex: 6, opacity: active ? 1 : 0 }}>
           <div style={{ height: "100%", background: `linear-gradient(90deg,${C.accent},${C.accent2})`, width: `${prog}%`, transition: "width .12s linear" }} />
         </div>
 
-        {/* ─── Updated Condition to check for showViews AND isMobile ─── */}
         {showViews && isMobile && (
           <div style={{
-            position: 'absolute',
-            top: compact ? 4 : 8,
-            right: compact ? 4 : 42,
-            background: 'rgba(0, 0, 0, 0.7)',
-            backdropFilter: 'blur(8px)',
-            padding: '3px 8px',
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            zIndex: 10,
-            border: '1px solid rgba(255,255,255,0.1)',
-            pointerEvents: 'none'
+            position: 'absolute', top: compact ? 4 : 8, right: compact ? 4 : 42, background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(8px)', padding: '3px 8px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 4, zIndex: 10,
+            border: '1px solid rgba(255,255,255,0.1)', pointerEvents: 'none'
           }}>
-
             <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>
               {fmtNum(currentViews)}
             </span>
           </div>
         )}
-
       </div>
 
       {!compact && showChannel && (
         <div style={{ padding: "10px 12px 12px" }}>
           <div onClick={handleProfileClick} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
-
             <Avatar profile={pf} size={32} />
-
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: C.text, lineHeight: 1.4, marginBottom: 3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{video.title}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.muted }}>
@@ -401,14 +348,8 @@ const [currentViews, setCurrentViews] = useState(video.views_count || video.view
                   onClick={handleProfileClick}
                   className="user-link"
                   style={{
-                    color: C.accent,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "color 0.2s ease",
-                    padding: isMobile ? "4px 0" : "0",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px"
+                    color: C.accent, fontWeight: 600, cursor: "pointer", transition: "color 0.2s ease",
+                    padding: isMobile ? "4px 0" : "0", display: "inline-flex", alignItems: "center", gap: "4px"
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.color = C.accent2}
                   onMouseLeave={(e) => e.currentTarget.style.color = C.accent}
