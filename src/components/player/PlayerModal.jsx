@@ -257,7 +257,8 @@ function SidebarAdWidget({ ad }) {
     </div>
   );
 }
-
+// Move this above your functions
+const pf = video.profiles || { username: video.channel || "Unknown" };
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN PLAYER MODAL
 // ─────────────────────────────────────────────────────────────────────────────
@@ -324,26 +325,31 @@ export default function PlayerModal({ video: initVideo, onClose }) {
   }, []);
 
   const handleProfileClick = (e) => {
-    if (e) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-    const profileData = video?.profiles || pf;
-    const identifier = profileData?.username || profileData?.id;
-    if (!identifier) return;
+  if (e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  
+  // Use the profiles object from the video data
+  const profileData = video?.profiles;
+  const identifier = profileData?.username || video?.channel;
+  
+  if (!identifier) return;
 
-    // 1. Tell the app to pause any active video
-    window.dispatchEvent(new CustomEvent("lx_pause_video"));
-    
-    // 2. Reset scroll to top
-    window.scrollTo(0, 0);
+  // 1. Pause the video so it doesn't play in the background
+  if (vRef.current) vRef.current.pause();
+  window.dispatchEvent(new CustomEvent("lx_pause_video"));
+  
+  // 2. Close the current modal (if required by your logic)
+  onClose(); 
 
-    // 3. Switch tabs and set active profile
-    setTimeout(() => {
-      setActiveProfile(profileData);
-      setTab(`profile:${identifier}`);
-    }, 50);
-  };
+  // 3. Navigate
+  window.scrollTo(0, 0);
+  setTimeout(() => {
+    if (profileData) setActiveProfile(profileData);
+    setTab(`profile:${identifier}`);
+  }, 50);
+};
 
   // ADD THIS EFFECT to listen for the pause event
   useEffect(() => {
