@@ -514,108 +514,56 @@ useEffect(() => {
     }).catch(() => {});
   }, [video.id]);
 
-  // ── Video element events ────────────────────────────────────────────────────
-  // FIX: Completely rewritten to avoid the buffering-forever bug.
-  // Key changes:
-  //   1. Do NOT set isBuffering=true on mount — let the browser decide
-  //   2. Do NOT call vRef.current.currentTime=0 before playing (causes seek loop)
-  //   3. Do NOT reset currentTime in onTimeUpdate while adActive (causes perpetual waiting)
-  //   4. Only set isBuffering=true on the 'waiting' event (actual stall)
-  //   5. Clear isBuffering on 'playing', 'canplay', 'seeked'
   useEffect(() => {
-    const v = vRef.current;
-    if (!v) return;
+  const v = vRef.current;
+  if (!v) return;
 
-    // Only reset playback state when the video source actually changes
-    if (currentVideoId.current !== video.id) {
-      currentVideoId.current = video.id;
-      setProg(0); setCurTime(0); setDur(0);
-      setBuffered(0);
-      // Don't pre-set buffering — the browser will fire 'waiting' if needed
-      setIsBuffering(false);
-    }
+  if (currentVideoId.current !== video.id) {
+    currentVideoId.current = video.id;
+    setProg(0); setCurTime(0); setDur(0); setBuffered(0);
+    setIsBuffering(false); 
+  }
 
-    // FIX: If an ad is active, just pause the video element quietly.
-    // Do NOT touch currentTime — that was causing the seek→waiting loop.
-    if (adActive) {
-      v.pause();
-      setPlaying(false);
-      return;
-    }
+  v.preload = "auto"; 
 
-    // Attempt autoplay as soon as there's enough data
-    // Use 'canplay' event if not yet ready, else play immediately
-    const tryAutoPlay = () => {
-      if (!vRef.current || adActive) return;
-      vRef.current.play()
-        .then(() => { setPlaying(true); setIsBuffering(false); })
-        .catch(() => {
-          // Autoplay blocked (common on mobile without user gesture) — show play button
-          setPlaying(false);
-          setIsBuffering(false);
-        });
-    };
+  const handleCanPlay = () => {
+    setIsBuffering(false);
+    if (!adActive) v.play().catch(() => setPlaying(false));
+  };
 
-    if (v.readyState >= 3) {
-      // HAVE_FUTURE_DATA or better — play immediately, no spinner needed
-      tryAutoPlay();
-    } else if (v.readyState >= 1) {
-      // Has metadata but not enough data — show spinner, wait for canplay
-      setIsBuffering(true);
-      v.addEventListener("canplay", tryAutoPlay, { once: true });
-    } else {
-      // No data yet — listen for canplay
-      v.addEventListener("canplay", tryAutoPlay, { once: true });
-    }
+  const handleWait = () => setIsBuffering(true);
+  const handlePlay = () => setIsBuffering(false);
 
-    // ── Event handlers ──────────────────────────────────────────────────────
-    const onLoadedMeta = () => { setDur(v.duration || 0); };
-    const onTimeUpdate = () => {
-      // FIX: Never manipulate currentTime here — just read it
-      setCurTime(v.currentTime);
-      setDur(v.duration || 0);
-      setProg(v.duration ? (v.currentTime / v.duration) * 100 : 0);
-    };
-    // FIX: Only flag buffering on actual stall, not on seek start
-    const onWaiting  = () => { setIsBuffering(true); };
-    const onPlaying  = () => { setIsBuffering(false); setPlaying(true); };
-    const onPause    = () => { setPlaying(false); };
-    const onCanPlay  = () => { setIsBuffering(false); };
-    const onSeeked   = () => { setIsBuffering(false); };
-    const onProgress = () => {
-      if (v.buffered.length && v.duration) {
-        setBuffered((v.buffered.end(v.buffered.length - 1) / v.duration) * 100);
-      }
-    };
-    const onEnded = () => {
-      const strat = getStrategy(sessionCount - 1, video.id);
-      if (strat.post > 0) startAd(strat.post, "post", sessionCount);
-      else startAutoCountdown();
-    };
+  const onTimeUpdate = () => {
+    setCurTime(v.currentTime);
+    setDur(v.duration || 0);
+    setProg(v.duration ? (v.currentTime / v.duration) * 100 : 0);
+  };
 
-    v.addEventListener("loadedmetadata", onLoadedMeta);
-    v.addEventListener("timeupdate",     onTimeUpdate);
-    v.addEventListener("waiting",        onWaiting);
-    v.addEventListener("playing",        onPlaying);
-    v.addEventListener("pause",          onPause);
-    v.addEventListener("canplay",        onCanPlay);
-    v.addEventListener("seeked",         onSeeked);
-    v.addEventListener("progress",       onProgress);
-    v.addEventListener("ended",          onEnded);
+  const onEnded = () => {
+    const strat = getStrategy(sessionCount - 1, video.id);
+    if (strat.post > 0) startAd(strat.post, "post", sessionCount);
+    else startAutoCountdown();
+  };
 
-    return () => {
-      v.removeEventListener("loadedmetadata", onLoadedMeta);
-      v.removeEventListener("timeupdate",     onTimeUpdate);
-      v.removeEventListener("waiting",        onWaiting);
-      v.removeEventListener("playing",        onPlaying);
-      v.removeEventListener("pause",          onPause);
-      v.removeEventListener("canplay",        onCanPlay);
-      v.removeEventListener("seeked",         onSeeked);
-      v.removeEventListener("progress",       onProgress);
-      v.removeEventListener("ended",          onEnded);
-      v.removeEventListener("canplay",        tryAutoPlay);
-    };
-  }, [video.id, video.video_url, adActive]); // eslint-disable-line
+  v.addEventListener("waiting", handleWait);
+  v.addEventListener("playing", handlePlay);
+  v.addEventListener("canplay", handleCanPlay);
+  v.addEventListener("canplaythrough", handlePlay);
+  v.addEventListener("timeupdate", onTimeUpdate);
+  v.addEventListener("ended", onEnded);
+
+  if (v.readyState >= 3) setIsBuffering(false);
+
+  return () => {
+    v.removeEventListener("waiting", handleWait);
+    v.removeEventListener("playing", handlePlay);
+    v.removeEventListener("canplay", handleCanPlay);
+    v.removeEventListener("canplaythrough", handlePlay);
+    v.removeEventListener("timeupdate", onTimeUpdate);
+    v.removeEventListener("ended", onEnded);
+  };
+}, [video.id, adActive, sessionCount]);
 
   // ── Misc effects ────────────────────────────────────────────────────────────
   useEffect(() => { document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = ""; }; }, []);
