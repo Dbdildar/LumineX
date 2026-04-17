@@ -22,7 +22,7 @@ function PBtn({ onClick, children, title, active, style: s }) {
         background: active || hov ? `${C.accent}22` : "none",
         border: active || hov ? `1px solid var(--accent)55` : "1px solid transparent",
         borderRadius: 8,
-        color: active || hov ? C.accent : "black",
+        color: active || hov ? C.accent : "white",
         fontSize: 15,
         cursor: "pointer",
         padding: "5px 8px",
