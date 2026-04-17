@@ -91,10 +91,9 @@ function SeekFlash({ seekFlash, arcProg }) {
   );
 
   return (
-    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 20 }}>
+    <div >
       {/* Ensure icon and label match the direction */}
-      <Panel side="left"  active={seekFlash === "bwd"} icon="⏪" label="-10s" />
-      <Panel side="right" active={seekFlash === "fwd"} icon="⏩" label="+10s" />
+      
     </div>
   );
 }
