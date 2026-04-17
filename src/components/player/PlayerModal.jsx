@@ -614,19 +614,28 @@ useEffect(() => {
   const v = vRef.current;
   if (!v || adActive) return;
 
-  // The logic MUST be currentTime + secs. 
-  // If secs is 10, it goes forward. If -10, it goes backward.
-  v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + secs));
+  // FIX: Explicitly add secs to currentTime. 
+  // Positive secs = Forward, Negative secs = Backward.
+  const newTime = v.currentTime + secs;
+  v.currentTime = Math.max(0, Math.min(v.duration || 0, newTime));
 
+  // Visual Feedback Logic
   const pct = v.duration ? Math.min((Math.abs(secs) / v.duration) * 100 * 6, 100) : 40;
   clearTimeout(flashTimer.current);
   setArcProg(0);
 
-  // CRITICAL: Set 'fwd' if secs is positive, 'bwd' if negative
+  // Set 'fwd' for positive numbers, 'bwd' for negative
   setSeekFlash(secs > 0 ? "fwd" : "bwd");
 
-  requestAnimationFrame(() => requestAnimationFrame(() => setArcProg(pct)));
-  flashTimer.current = setTimeout(() => { setSeekFlash(null); setArcProg(0); }, 800);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => setArcProg(pct));
+  });
+
+  flashTimer.current = setTimeout(() => {
+    setSeekFlash(null);
+    setArcProg(0);
+  }, 800);
+  
   revealCtrl();
 }, [revealCtrl, adActive]);
 
@@ -709,18 +718,19 @@ const handleTouchEnd = useCallback(e => {
   const gap      = now - prevTap.time;
 
   // Double Tap Detection
-  if (gap < 300) {
-    clearTimeout(tapTimerRef.current);
-    lastTap.current = { time: 0, x: 0 };
+ // Inside handleTouchEnd (around line 530)
+if (gap < 300) {
+  clearTimeout(tapTimerRef.current);
+  lastTap.current = { time: 0, x: 0 };
 
-    if (isRightZone) {
-      seekBy(10);  // FORWARD
-      return;
-    } else if (isLeftZone) {
-      seekBy(-10); // BACKWARD
-      return;
-    }
-  } 
+  if (isRightZone) {
+    seekBy(10);  // This will now correctly go FORWARD
+    return;
+  } else if (isLeftZone) {
+    seekBy(-10); // This will correctly go BACKWARD
+    return;
+  }
+}
 
   // Single Tap Logic
   lastTap.current = { time: now, x };
