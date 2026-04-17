@@ -132,33 +132,6 @@ function SeekFlash({ seekFlash, arcProg }) {
       {/* LEFT = backward (⟲), RIGHT = forward (⟳) */}
       <Panel side="left" active={seekFlash === "bwd"} icon="⟲" label="-10s" />
       <Panel side="right" active={seekFlash === "fwd"} icon="⟳" label="+10s" />
-      {seekFlash === "3x" && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(0,0,0,.25)",
-          }}
-        >
-          <div
-            style={{
-              background: "rgba(0,0,0,.7)",
-              border: "1px solid rgba(255,255,255,.3)",
-              borderRadius: 12,
-              padding: "8px 18px",
-              fontSize: 16,
-              fontWeight: 900,
-              color: "white",
-              backdropFilter: "blur(8px)",
-            }}
-          >
-            3× Speed
-          </div>
-        </div>
-      )}
     </div>
   );
 }
