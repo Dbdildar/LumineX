@@ -257,8 +257,7 @@ function SidebarAdWidget({ ad }) {
     </div>
   );
 }
-// Move this above your functions
-const pf = video.profiles || { username: video.channel || "Unknown" };
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN PLAYER MODAL
 // ─────────────────────────────────────────────────────────────────────────────
