@@ -323,6 +323,37 @@ export default function PlayerModal({ video: initVideo, onClose }) {
     return () => clearInterval(t);
   }, []);
 
+  const handleProfileClick = (e) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    const profileData = video?.profiles || pf;
+    const identifier = profileData?.username || profileData?.id;
+    if (!identifier) return;
+
+    // 1. Tell the app to pause any active video
+    window.dispatchEvent(new CustomEvent("lx_pause_video"));
+    
+    // 2. Reset scroll to top
+    window.scrollTo(0, 0);
+
+    // 3. Switch tabs and set active profile
+    setTimeout(() => {
+      setActiveProfile(profileData);
+      setTab(`profile:${identifier}`);
+    }, 50);
+  };
+
+  // ADD THIS EFFECT to listen for the pause event
+  useEffect(() => {
+    const handlePause = () => { if (vRef.current) vRef.current.pause(); };
+    window.addEventListener("lx_pause_video", handlePause);
+    return () => window.removeEventListener("lx_pause_video", handlePause);
+  }, []);
+
+  
+  
   // Reset on video change
   useEffect(() => {
     viewGuard.current = false;
@@ -856,7 +887,9 @@ useEffect(() => {
           <div style={{ padding: isMobile ? "14px 12px" : "18px 20px" }}>
             <h1 style={{ fontSize: isMobile ? 16 : 21, fontWeight: 800, lineHeight: 1.35, marginBottom: 12, fontFamily: "'Syne',sans-serif", color: C.text }}>{video.title}</h1>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+            <div 
+              onClick={handleProfileClick}
+              style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" ,cursor: "pointer"}}>
               <Avatar profile={pf} size={isMobile ? 34 : 42} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
