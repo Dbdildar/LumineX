@@ -676,7 +676,7 @@ useEffect(() => {
     }, 600);
   }, [adActive]);
 
-  const handleTouchEnd = useCallback(e => {
+const handleTouchEnd = useCallback(e => {
   clearTimeout(lpTimerRef.current);
   if (is3x) {
     const v = vRef.current;
@@ -688,17 +688,18 @@ useEffect(() => {
 
   const rect  = e.currentTarget.getBoundingClientRect();
   const touch = e.changedTouches[0];
-  // We use clientX relative to the video container
-  const x     = touch.clientX - rect.left; 
-  const width = rect.width;
   
-  // Define zones clearly: Left 33% and Right 33%
-  const isLeftZone  = x < (width / 3);
-  const isRightZone = x > (width * 2 / 3);
+  // FIX: Use a more stable calculation for X relative to the container
+  const x = touch.clientX - rect.left;
+  const containerWidth = rect.width;
+  
+  // Explicitly define the zones
+  const isLeftZone  = x < (containerWidth * 0.35); // Left 35%
+  const isRightZone = x > (containerWidth * 0.65); // Right 35%
 
   const dx = Math.abs(touch.clientX - touchStartRef.current.x);
   const dy = Math.abs(touch.clientY - touchStartRef.current.y);
-  if (dx > 20 || dy > 20) return; // Ignore swipes
+  if (dx > 25 || dy > 25) return; // Ignore if user is scrolling
 
   const now      = Date.now();
   const prevTap  = lastTap.current;
@@ -709,12 +710,11 @@ useEffect(() => {
     clearTimeout(tapTimerRef.current);
     lastTap.current = { time: 0, x: 0 };
 
-    if (isLeftZone) {
-      seekBy(-10); // BACKWARD
-      return;
-    } 
     if (isRightZone) {
       seekBy(10);  // FORWARD
+      return;
+    } else if (isLeftZone) {
+      seekBy(-10); // BACKWARD
       return;
     }
   } 
@@ -723,16 +723,18 @@ useEffect(() => {
   lastTap.current = { time: now, x };
   clearTimeout(tapTimerRef.current);
   tapTimerRef.current = setTimeout(() => {
-    // If tap was in the middle, toggle play. Otherwise, reveal controls.
+    // If tap was in the middle, toggle play
     if (!isLeftZone && !isRightZone) {
       togglePlay();
     } else {
+      // Reveal controls on side taps
       if (showCtrl) setShowCtrl(false);
       else revealCtrl();
     }
     lastTap.current = { time: 0, x: 0 };
   }, 280);
 }, [adActive, is3x, seekBy, togglePlay, showCtrl, revealCtrl]);
+
   
   // ── Action handlers ─────────────────────────────────────────────────────────
   const handleShare = async () => {
