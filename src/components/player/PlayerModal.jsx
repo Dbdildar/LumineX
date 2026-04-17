@@ -677,48 +677,63 @@ useEffect(() => {
   }, [adActive]);
 
   const handleTouchEnd = useCallback(e => {
-    clearTimeout(lpTimerRef.current);
-    if (is3x) {
-      const v = vRef.current;
-      if (v) { v.playbackRate = 1; setSpeed(1); }
-      setIs3x(false); setSeekFlash(null); setArcProg(0);
+  clearTimeout(lpTimerRef.current);
+  if (is3x) {
+    const v = vRef.current;
+    if (v) { v.playbackRate = 1; setSpeed(1); }
+    setIs3x(false); setSeekFlash(null); setArcProg(0);
+    return;
+  }
+  if (adActive) return;
+
+  const rect  = e.currentTarget.getBoundingClientRect();
+  const touch = e.changedTouches[0];
+  // We use clientX relative to the video container
+  const x     = touch.clientX - rect.left; 
+  const width = rect.width;
+  
+  // Define zones clearly: Left 33% and Right 33%
+  const isLeftZone  = x < (width / 3);
+  const isRightZone = x > (width * 2 / 3);
+
+  const dx = Math.abs(touch.clientX - touchStartRef.current.x);
+  const dy = Math.abs(touch.clientY - touchStartRef.current.y);
+  if (dx > 20 || dy > 20) return; // Ignore swipes
+
+  const now      = Date.now();
+  const prevTap  = lastTap.current;
+  const gap      = now - prevTap.time;
+
+  // Double Tap Detection
+  if (gap < 300) {
+    clearTimeout(tapTimerRef.current);
+    lastTap.current = { time: 0, x: 0 };
+
+    if (isLeftZone) {
+      seekBy(-10); // BACKWARD
+      return;
+    } 
+    if (isRightZone) {
+      seekBy(10);  // FORWARD
       return;
     }
-    if (adActive) return;
+  } 
 
-    const rect  = e.currentTarget.getBoundingClientRect();
-    const touch = e.changedTouches[0];
-    const x     = touch.clientX - rect.left;
-    const third = rect.width / 3;
-    const dx    = Math.abs(touch.clientX - touchStartRef.current.x);
-    const dy    = Math.abs(touch.clientY - touchStartRef.current.y);
-    if (dx > 15 || dy > 15) return;
-
-    const now      = Date.now();
-    const prevTap  = lastTap.current;
-    const gap      = now - prevTap.time;
-    const sameSide = Math.abs(x - prevTap.x) < 50;
-
-    if (gap < 300 && sameSide) {
-      clearTimeout(tapTimerRef.current);
-      lastTap.current = { time: 0, x: 0 };
-      if (x < third) seekBy(-10);
-      else if (x > third * 2) seekBy(10);
+  // Single Tap Logic
+  lastTap.current = { time: now, x };
+  clearTimeout(tapTimerRef.current);
+  tapTimerRef.current = setTimeout(() => {
+    // If tap was in the middle, toggle play. Otherwise, reveal controls.
+    if (!isLeftZone && !isRightZone) {
+      togglePlay();
     } else {
-      lastTap.current = { time: now, x };
-      clearTimeout(tapTimerRef.current);
-      tapTimerRef.current = setTimeout(() => {
-        if (x > third && x < third * 2) {
-          togglePlay();
-        } else {
-          if (showCtrl) { setShowCtrl(false); clearTimeout(ctrlTimer.current); }
-          else revealCtrl();
-        }
-        lastTap.current = { time: 0, x: 0 };
-      }, 280);
+      if (showCtrl) setShowCtrl(false);
+      else revealCtrl();
     }
-  }, [adActive, is3x, seekBy, togglePlay, showCtrl, revealCtrl]);
-
+    lastTap.current = { time: 0, x: 0 };
+  }, 280);
+}, [adActive, is3x, seekBy, togglePlay, showCtrl, revealCtrl]);
+  
   // ── Action handlers ─────────────────────────────────────────────────────────
   const handleShare = async () => {
     const url = `${window.location.origin}?v=${video.id}`;
