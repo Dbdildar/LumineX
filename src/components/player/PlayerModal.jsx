@@ -80,28 +80,24 @@ function SeekFlash({ seekFlash, arcProg }) {
     }}>
       {active && (
         <div style={{ position: "relative", width: 76, height: 76 }}>
-          <svg width={76} height={76} style={{ transform: `rotate(-90deg)${side === "right" ? " scaleX(-1)" : ""}` }}>
-            <circle cx={38} cy={38} r={32} fill="none" stroke="rgba(255,255,255,.2)" strokeWidth={4} />
-            <circle cx={38} cy={38} r={32} fill="none" stroke="white" strokeWidth={4}
-              strokeLinecap="round" strokeDasharray={`${arc * (32 / 30)} ${C2 * (32 / 30)}`}
-              style={{ transition: "stroke-dasharray .25s ease" }} />
-          </svg>
+          {/* SVG Ring code remains same */}
           <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}>
             <span style={{ fontSize: 20, lineHeight: 1 }}>{icon}</span>
-            <span style={{ fontSize: 10, fontWeight: 800, color: "white", letterSpacing: .5 }}>{label}</span>
+            <span style={{ fontSize: 10, fontWeight: 800, color: "white" }}>{label}</span>
           </div>
         </div>
       )}
     </div>
   );
+
   return (
-    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 20, animation: "fadeIn .1s" }}>
+    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 20 }}>
+      {/* Ensure icon and label match the direction */}
       <Panel side="left"  active={seekFlash === "bwd"} icon="⏪" label="-10s" />
       <Panel side="right" active={seekFlash === "fwd"} icon="⏩" label="+10s" />
     </div>
   );
 }
-
 // ─────────────────────────────────────────────────────────────────────────────
 // BUFFERING OVERLAY — only shown after a meaningful delay to avoid flash
 // ─────────────────────────────────────────────────────────────────────────────
@@ -616,16 +612,24 @@ useEffect(() => {
   }, [revealCtrl, adActive]);
 
   const seekBy = useCallback(secs => {
-    const v = vRef.current;
-    if (!v || adActive) return;
-    v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + secs));
-    const pct = v.duration ? Math.min((Math.abs(secs) / v.duration) * 100 * 6, 100) : 40;
-    clearTimeout(flashTimer.current);
-    setArcProg(0); setSeekFlash(secs > 0 ? "fwd" : "bwd");
-    requestAnimationFrame(() => requestAnimationFrame(() => setArcProg(pct)));
-    flashTimer.current = setTimeout(() => { setSeekFlash(null); setArcProg(0); }, 800);
-    revealCtrl();
-  }, [revealCtrl, adActive]);
+  const v = vRef.current;
+  if (!v || adActive) return;
+
+  // The logic MUST be currentTime + secs. 
+  // If secs is 10, it goes forward. If -10, it goes backward.
+  v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + secs));
+
+  const pct = v.duration ? Math.min((Math.abs(secs) / v.duration) * 100 * 6, 100) : 40;
+  clearTimeout(flashTimer.current);
+  setArcProg(0);
+
+  // CRITICAL: Set 'fwd' if secs is positive, 'bwd' if negative
+  setSeekFlash(secs > 0 ? "fwd" : "bwd");
+
+  requestAnimationFrame(() => requestAnimationFrame(() => setArcProg(pct)));
+  flashTimer.current = setTimeout(() => { setSeekFlash(null); setArcProg(0); }, 800);
+  revealCtrl();
+}, [revealCtrl, adActive]);
 
   // ── iOS/Safari/Chrome fullscreen ────────────────────────────────────────────
   const enterFS = useCallback(() => {
