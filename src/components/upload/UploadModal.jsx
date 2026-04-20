@@ -182,61 +182,79 @@ export default function UploadModal() {
     });
   };
 
-  const handleSubmit = async () => {
-    if (!canSubmit) return;
+const handleSubmit = async () => {
+  if (!canSubmit) return;
 
-    setIsUploading(true);
-    setUploadProgress(0);
+  setIsUploading(true);
+  setUploadProgress(0);
 
-    try {
-      const userId = session?.user?.id;
-      if (!userId) throw new Error("Please log in to upload");
+  try {
+    const userId = session?.user?.id;
+    if (!userId) throw new Error("Please log in to upload");
 
-      // --- 1. UPLOAD VIDEO (STAYING ON SUPABASE) ---
-      const fileExt = videoFile.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${userId}/${fileName}`;
-      const CLOUDINARY_CLOUD_NAME = "dxv2ijftd";
-      const UPLOAD_PRESET = "luminex";
+    // 1. PREPARE FILE PATHS
+    const fileExt = videoFile.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `${userId}/${fileName}`;
 
-      const formData = new FormData();
-      formData.append("file", selectedThumb); // The base64 string
-      formData.append("upload_preset", UPLOAD_PRESET);
-      formData.append("folder", "thumbnails"); // Optional: organizes files in Cloudinary
+    // 2. GET PRESIGNED URL FROM YOUR WORKER
+    // This allows the browser to upload directly to Backblaze
+    const { uploadUrl } = await fetch('https://luminex.dbdildar007.workers.dev/api/b2-presigned', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath, contentType: videoFile.type })
+    }).then(res => res.json());
 
-      const cloudinaryRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: "POST", body: formData }
-      );
+    if (!uploadUrl) throw new Error("Failed to generate upload link");
 
-      const cloudinaryData = await cloudinaryRes.json();
-      if (!cloudinaryRes.ok) throw new Error("Cloudinary Upload Failed");
-      // 1. Get the raw URL from Cloudinary
-      const finalThumbnailUrl = cloudinaryData.secure_url;
+    // 3. UPLOAD VIDEO DIRECTLY TO BACKBLAZE
+    const b2Response = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: videoFile,
+      headers: { 'Content-Type': videoFile.type }
+    });
 
-      const optimizedThumbUrl = finalThumbnailUrl.replace('/upload/', '/upload/f_auto,q_auto/');
- 
-      const { error: dbError } = await supabase.from('videos').insert([{
-        user_id: userId,
-        title: form.title,
-        categories: form.categories,
-        video_url: filePath,
-        thumbnail_url: optimizedThumbUrl, 
-        duration: videoMeta.duration,
-        size: videoFile.size
-      }]);
+    if (!b2Response.ok) throw new Error("Backblaze Upload Failed");
 
-      if (dbError) throw dbError;
+    // 4. UPLOAD THUMBNAIL TO CLOUDINARY (Existing Logic)
+    const thumbBlob = await (await fetch(selectedThumb)).blob();
+    const thumbData = new FormData();
+    thumbData.append("file", thumbBlob);
+    thumbData.append("upload_preset", "luminex");
 
-      setIsUploading(false);
-      setShowSuccess(true);
+    const cloudRes = await fetch(
+      `https://api.cloudinary.com/v1_1/dxv2ijftd/image/upload`,
+      { method: "POST", body: thumbData }
+    );
+    const cloudJson = await cloudRes.json();
+    const optimizedThumbUrl = cloudJson.secure_url.replace('/upload/', '/upload/f_auto,q_auto/');
 
-    } catch (err) {
-      setIsUploading(false);
-      console.error(err);
-      alert(err.message || "Upload failed");
-    }
-  };
+    // 5. PUSH URL AND METADATA TO SUPABASE
+    // We store the CLOUDFLARE URL so traffic is free via Bandwidth Alliance
+    const cloudflareVideoUrl = `https://luminex.dbdildar007.workers.dev/view/${filePath}`;
+
+    const { error: dbError } = await supabase.from('videos').insert([{
+      user_id: userId,
+      title: form.title,
+      categories: form.categories,
+      video_url: cloudflareVideoUrl, // <--- This link plays the B2 file via Cloudflare
+      thumbnail_url: optimizedThumbUrl, 
+      duration: videoMeta.duration,
+      size: videoFile.size
+    }]);
+
+    if (dbError) throw dbError;
+
+    setIsUploading(false);
+    setShowSuccess(true);
+
+  } catch (err) {
+    setIsUploading(false);
+    console.error(err);
+    alert(err.message || "Upload failed");
+  }
+};
+  
 
   const canSubmit = form.title.trim() && form.categories.length > 0 && selectedThumb && !isGeneratingThumbs && !isUploading;
 
