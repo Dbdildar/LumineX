@@ -29,9 +29,19 @@ function AppInner() {
   const [catFilter, setCatFilter] = useState(null);
   const [filter, setFilter] = useState("all");
 
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [tab]);
+// Inside AppInner (App.js)
+useEffect(() => {
+  // We use a small timeout to ensure the new component (ProfilePage) 
+  // has actually mounted before we move the scrollbar.
+  const timer = setTimeout(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    // Backup for mobile browsers that ignore window.scrollTo
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, 0);
+
+  return () => clearTimeout(timer);
+}, [tab]);
 
 
   useEffect(() => {
