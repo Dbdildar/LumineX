@@ -56,7 +56,10 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   transition: background .3s ease, color .3s ease;
-  min-height: 100vh;
+  
+  /* Update these lines */
+  min-height: 100vh; 
+  min-height: 100dvh; /* Dynamic viewport height */
   display: flex;
   flex-direction: column;
 }
@@ -223,4 +226,23 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%);
   background-size: 200% 100%;
   animation: skeleton-loading 1.5s infinite;
+}
+/* Add this to your CSS file */
+.bottom-nav-item, 
+footer [class*="tab-item"] { 
+  flex-shrink: 0 !important;
+}
+.mobile-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(60px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--headerBg);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 1000;
 }
