@@ -25,30 +25,30 @@ const MOB = [
 ];
 
 export default function NavTabs() {
- // Around line 27
-const { tab, setTab, setSearch, setUploadModal, setVipModal, session, setAuthModal } = useApp();
+  // Around line 27
+  const { tab, setTab, setSearch, setUploadModal, setVipModal, session, setAuthModal } = useApp();
   const isMobile = useIsMobile();
   const [showMore, setShowMore] = useState(false);
 
- // NavTabs.jsx
+  // NavTabs.jsx
 
-const handlePress = (id) => {
-  if (id === "upload") {
-    // If there is a session, open the upload modal
-    if (session) {
-      return setUploadModal(true);
-    } else {
-      // If no session, show the login modal instead
-      return setAuthModal("login");
+  const handlePress = (id) => {
+    if (id === "upload") {
+      // If there is a session, open the upload modal
+      if (session) {
+        return setUploadModal(true);
+      } else {
+        // If no session, show the login modal instead
+        return setAuthModal("login");
+      }
     }
-  }
-  
-  if (id === "more") return setShowMore(!showMore);
-  if (id === "search") return setSearch(true);
-  
-  setTab(id);
-  setShowMore(false);
-};
+
+    if (id === "more") return setShowMore(!showMore);
+    if (id === "search") return setSearch(true);
+
+    setTab(id);
+    setShowMore(false);
+  };
 
   if (isMobile) return (
     <>
@@ -61,12 +61,12 @@ const handlePress = (id) => {
           boxShadow: "0 8px 32px rgba(0,0,0,0.5)", width: 140
         }}>
           {/* Added Saved Button Here */}
-          <button onClick={() => {setTab("saved"); setShowMore(false);}} style={moreBtnStyle}>❤️ Saved</button>
-          
-          <button onClick={() => {setTab("channels"); setShowMore(false);}} style={moreBtnStyle}>🌟 Creators</button>
-          <button onClick={() => {setTab("categories"); setShowMore(false);}} style={moreBtnStyle}>🏷 Categories</button>
-          <button onClick={() => {setVipModal(true); setShowMore(false);}} style={{...moreBtnStyle, color: "#fbbf24"}}>💎 VIP Plan</button>
-         <button onClick={() => {setTab("history"); setShowMore(false);}} style={moreBtnStyle}>🕐 History</button>
+          <button onClick={() => { setTab("saved"); setShowMore(false); }} style={moreBtnStyle}>❤️ Saved</button>
+
+          <button onClick={() => { setTab("channels"); setShowMore(false); }} style={moreBtnStyle}>🌟 Creators</button>
+          <button onClick={() => { setTab("categories"); setShowMore(false); }} style={moreBtnStyle}>🏷 Categories</button>
+          <button onClick={() => { setVipModal(true); setShowMore(false); }} style={{ ...moreBtnStyle, color: "#fbbf24" }}>💎 VIP Plan</button>
+          <button onClick={() => { setTab("history"); setShowMore(false); }} style={moreBtnStyle}>🕐 History</button>
         </div>
       )}
 
@@ -97,11 +97,20 @@ const handlePress = (id) => {
               onTouchEnd={(e) => e.currentTarget.style.transform = "scale(1)"}
             >
               <div style={t.isAction ? uploadCircleStyle : {}}>
-                <span style={{ fontSize: t.isAction ? 24 : 20, lineHeight: 1 }}>{t.icon}</span>
+                {t.id === 'upload' ? (
+                  <div className="upload-btn-glow">
+                    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="3" fill="none">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 20, lineHeight: 1 }}>{t.icon}</span>
+                )}
               </div>
-              
+
               <span style={{ fontSize: 8, letterSpacing: .2, fontWeight: 600 }}>{t.label}</span>
-              
+
               {isActive && !t.isAction && (
                 <div style={{ position: "absolute", bottom: 2, width: 20, height: 2, background: C.accent, borderRadius: 2 }} />
               )}
