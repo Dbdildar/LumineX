@@ -149,16 +149,29 @@ function MobileCategoryStrip({ categories, loading, selectedCat, onSelect }) {
     </div>
   );
   return (
-    <div style={{ display: "flex", gap: 10, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 4, marginBottom: 8 }}>
+    <div style={{
+      display: "flex",
+      gap: 10,
+      overflowX: "auto",
+      WebkitOverflowScrolling: "touch", // Smooth scrolling for iOS
+      paddingBottom: 8,
+      marginBottom: 8,
+      flexShrink: 0, // CRITICAL: Prevents the whole bar from shrinking
+      minHeight: "80px" // Give it a stable floor
+    }}>
       {categories.map(name => {
         const color = catColor(name);
         const active = selectedCat === name;
         return (
           <div
             key={name} onClick={() => onSelect(name)}
-            style={{
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
-              flexShrink: 0, cursor: "pointer",
+          style={{
+              display: "flex", 
+              flexDirection: "column", 
+              alignItems: "center", 
+              gap: 5,
+              flexShrink: 0, // Prevents individual items from squishing
+              width: 60, // Fixed width helps stability
             }}
           >
             <div style={{
